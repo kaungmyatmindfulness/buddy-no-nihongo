@@ -1,0 +1,3 @@
+CREATE DATABASE users_db;
+CREATE DATABASE srs_db;
+CREATE DATABASE content_db;

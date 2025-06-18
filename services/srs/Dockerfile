@@ -1,29 +1,40 @@
-# Stage 1: Build the binary using a builder image
+# =================================================================
+# Stage 1: The Builder Stage
+# =================================================================
 FROM golang:1.24-alpine AS builder
 
-# Set the Current Working Directory inside the container
+# Set the working directory inside the container.
 WORKDIR /app
 
-# Copy the go.mod and go.sum files first to take advantage of Docker caching
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy dependency-related files from the project root.
+# `go work sync` should be run before the build to ensure these files exist.
+COPY go.work go.work.sum ./
+COPY vendor ./vendor
 
-# Copy the rest of the source code
-COPY . .
+# Copy all source code from the project root.
+COPY lib ./lib
+COPY services ./services
 
-# Build the Go app. CGO_ENABLED=0 is important for a static binary.
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/main ./cmd/main.go
+# Build the specific service binary.
+# The `-ldflags "-w -s"` strips debug information, making the binary smaller.
+# CGO_ENABLED=0 and GOOS=linux are essential for creating a static, portable binary.
+#
+# !!! THIS IS THE ONLY LINE TO CHANGE FOR EACH SERVICE !!!
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-w -s" -o /app/main ./services/srs/cmd
 
-# Stage 2: Create the final, minimal image for production
+
+# =================================================================
+# Stage 2: The Final Stage
+# =================================================================
 FROM alpine:latest
 
 WORKDIR /app
 
-# Copy only the compiled binary from the builder stage
+# Copy only the compiled binary from the 'builder' stage.
 COPY --from=builder /app/main .
 
-# Expose the port the service runs on
+# Expose the port the service runs on.
 EXPOSE 8080
 
-# The command to run when the container starts
+# The command that will be executed when the container starts.
 CMD ["./main"]

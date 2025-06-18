@@ -15,7 +15,12 @@
 # Never commit environment files, which may contain secrets.
 # Use a .env.example file as a template instead.
 .env
+.env.*
+!.env.example
 
 # Docker
 # Ignore local docker-compose override files
 docker-compose.override.yml
+
+# Go vendor directory
+/vendor/
