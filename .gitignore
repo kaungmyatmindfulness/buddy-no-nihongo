@@ -1,0 +1,21 @@
+# Go build files
+# These are the compiled executables. We build them inside Docker, so we don't need them in Git.
+/services/users/main
+/services/srs/main
+/services/content/main
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Environment files
+# Never commit environment files, which may contain secrets.
+# Use a .env.example file as a template instead.
+.env
+
+# Docker
+# Ignore local docker-compose override files
+docker-compose.override.yml
