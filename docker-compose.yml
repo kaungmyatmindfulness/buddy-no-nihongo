@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  # The Nginx reverse proxy is the entry point for all traffic
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80" # Maps port 80 on your machine to port 80 in the container
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - users-service
+      - srs-service
+      - content-service
+
+  # The Users microservice
+  users-service:
+    build: ./services/users
+    restart: unless-stopped
+    # This 'env_file' directive reads variables from the .env file
+    # and makes them available inside the container.
+    env_file:
+      - ./.env
+    # We can also set/override specific variables per service
+    environment:
+      - DB_NAME=users_db
+    depends_on:
+      - db
+
+  srs-service:
+    build: ./services/srs
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      - DB_NAME=srs_db
+    depends_on:
+      - db
+
+  content-service:
+    build: ./services/content
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      - DB_NAME=content_db
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    # The 'env_file' directive also works here, populating
+    # POSTGRES_USER, POSTGRES_PASSWORD, etc. from your .env file.
+    env_file:
+      - ./.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+
+volumes:
+  postgres_data:
