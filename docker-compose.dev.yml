@@ -1,14 +1,14 @@
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: bnn-db-dev
+  mongodb:
+    image: mongo:latest
+    container_name: bnn-mongodb-dev
     restart: unless-stopped
-    env_file: [./.env.local]
+    env_file:
+      - ./.env.local
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - mongo_data_dev:/data/db
 
 volumes:
-  postgres_data_dev:
+  mongo_data_dev:

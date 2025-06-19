@@ -1,30 +1,31 @@
 services:
-  # The Nginx reverse proxy is the entry point for all traffic
+  # 1. Nginx: The API Gateway
   nginx:
     image: nginx:stable-alpine
     container_name: bnn-nginx
     restart: unless-stopped
-    ports:
-      - "80:80" # Maps port 80 on your machine to port 80 in the container
-    volumes:
-      - ./nginx:/etc/nginx/conf.d:ro
+    ports: ["80:80"]
+    volumes: ["./nginx:/etc/nginx/conf.d:ro"]
     depends_on:
       - users-service
       - srs-service
       - content-service
 
-  # The Users microservice
+  # 2. Users Service
   users-service:
+    container_name: bnn-users-service
     build:
-      context: . # Use the project root as the build context
-      dockerfile: ./services/users/Dockerfile # Point to the self-contained Dockerfile
+      context: .
+      dockerfile: ./services/users/Dockerfile
     restart: unless-stopped
     env_file: [./.env.docker]
     environment:
       - DB_NAME=users_db
-    depends_on: [db]
+    depends_on: [mongodb]
 
+  # 3. SRS Service
   srs-service:
+    container_name: bnn-srs-service
     build:
       context: .
       dockerfile: ./services/srs/Dockerfile
@@ -32,9 +33,11 @@ services:
     env_file: [./.env.docker]
     environment:
       - DB_NAME=srs_db
-    depends_on: [db]
+    depends_on: [mongodb]
 
+  # 4. Content Service
   content-service:
+    container_name: bnn-content-service
     build:
       context: .
       dockerfile: ./services/content/Dockerfile
@@ -42,20 +45,16 @@ services:
     env_file: [./.env.docker]
     environment:
       - DB_NAME=content_db
-    depends_on: [db]
+    depends_on: [mongodb]
 
-  db:
-    image: postgres:15-alpine
+  # 5. MongoDB Database
+  mongodb:
+    image: mongo:latest
+    container_name: bnn-mongodb
     restart: unless-stopped
-    # The 'env_file' directive also works here, populating
-    # POSTGRES_USER, POSTGRES_PASSWORD, etc. from your .env file.
-    env_file:
-      - ./.env.docker
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    env_file: [./.env.docker] # Injects MONGO_INITDB_ROOT_USERNAME/PASSWORD
+    ports: ["27017:27017"]
+    volumes: ["mongo_data:/data/db"]
 
 volumes:
-  postgres_data:
+  mongo_data:
