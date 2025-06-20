@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"buddy-no-nihongo/lib/config" // Uses the shared config library
+	"wise-owl/lib/config" // Uses the shared config library
 
 	"github.com/gin-gonic/gin"
 )

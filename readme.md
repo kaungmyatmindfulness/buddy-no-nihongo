@@ -1,10 +1,10 @@
-# buddy-no-nihongo
+# wise-owl
 
 [](https://example.com)
 [](https://go.dev/)
 [](https://example.com)
 
-`buddy-no-nihongo` is the backend system for a Japanese language learning mobile application. It is specifically designed as a study companion for students using the "Minna no Nihongo" textbook series. The system provides a set of microservices to handle curriculum content, user progress, and a powerful Spaced Repetition System (SRS) for long-term vocabulary and grammar retention.
+`wise-owl` is the backend system for a Japanese language learning mobile application. It is specifically designed as a study companion for students using the "Minna no Nihongo" textbook series. The system provides a set of microservices to handle curriculum content, user progress, and a powerful Spaced Repetition System (SRS) for long-term vocabulary and grammar retention.
 
 ---
 
@@ -104,7 +104,7 @@ The application follows the **Twelve-Factor App** methodology for configuration.
 ## Project Structure
 
 ```
-buddy-no-nihongo/
+wise-owl/
 ├── .env.docker         # Environment variables for the full Docker stack
 ├── .env.local          # Environment variables for running Go code on the host
 ├── .env.example        # A template for environment variables
@@ -141,7 +141,7 @@ Follow these steps to get the entire application running on your local machine.
 
    ```bash
    git clone <repository_url>
-   cd buddy-no-nihongo
+   cd wise-owl
    ```
 
 2. **Create Environment Files:**

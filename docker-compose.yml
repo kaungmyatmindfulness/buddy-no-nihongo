@@ -2,7 +2,7 @@ services:
   # 1. Nginx: The API Gateway
   nginx:
     image: nginx:stable-alpine
-    container_name: bnn-nginx
+    container_name: wo-nginx
     restart: unless-stopped
     ports: ["80:80"]
     volumes: ["./nginx:/etc/nginx/conf.d:ro"]
@@ -13,7 +13,7 @@ services:
 
   # 2. Users Service
   users-service:
-    container_name: bnn-users-service
+    container_name: wo-users-service
     build:
       context: .
       dockerfile: ./services/users/Dockerfile
@@ -25,7 +25,7 @@ services:
 
   # 3. SRS Service
   srs-service:
-    container_name: bnn-srs-service
+    container_name: wo-srs-service
     build:
       context: .
       dockerfile: ./services/srs/Dockerfile
@@ -37,7 +37,7 @@ services:
 
   # 4. Content Service
   content-service:
-    container_name: bnn-content-service
+    container_name: wo-content-service
     build:
       context: .
       dockerfile: ./services/content/Dockerfile
@@ -50,7 +50,7 @@ services:
   # 5. MongoDB Database
   mongodb:
     image: mongo:latest
-    container_name: bnn-mongodb
+    container_name: wo-mongodb
     restart: unless-stopped
     env_file: [./.env.docker] # Injects MONGO_INITDB_ROOT_USERNAME/PASSWORD
     ports: ["27017:27017"]

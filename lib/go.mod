@@ -1,4 +1,4 @@
-module buddy-no-nihongo/lib
+module wise-owl/lib
 
 go 1.24.4
 

@@ -1,7 +1,7 @@
 services:
   mongodb:
     image: mongo:latest
-    container_name: bnn-mongodb-dev
+    container_name: wo-mongodb-dev
     restart: unless-stopped
     env_file:
       - ./.env.local

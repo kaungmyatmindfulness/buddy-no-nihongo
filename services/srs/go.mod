@@ -1,4 +1,4 @@
-module buddy-no-nihongo/services/srs
+module wise-owl/services/srs
 
 go 1.24.4
 

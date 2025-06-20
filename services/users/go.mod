@@ -1,4 +1,4 @@
-module buddy-no-nihongo/services/users
+module wise-owl/services/users
 
 go 1.24.4
 
