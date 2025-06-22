@@ -1,3 +1,6 @@
+// FILE: services/users/cmd/main.go
+// This is the entry point for the Wise Owl Users Service. It wires everything together.
+
 package main
 
 import (
@@ -18,26 +21,34 @@ import (
 )
 
 func main() {
-
+	// 1. Load Configuration
 	cfg, err := config.LoadConfig()
-
 	if err != nil {
 		log.Fatalf("FATAL: could not load config: %v", err)
 	}
 	if cfg.Auth0Domain == "" || cfg.Auth0Audience == "" {
 		log.Fatal("FATAL: AUTH0_DOMAIN and AUTH0_AUDIENCE must be set")
 	}
-	log.Println("Configuration loaded.")
 
+	dbName := cfg.DB_NAME
+	if dbName == "" {
+		dbName = "users_db"
+	}
+	log.Printf("Configuration loaded. Using database: %s", dbName)
+
+	// 2. Connect to Database
 	dbConn := database.Connect(cfg.MONGODB_URI)
-	userCollection := dbConn.GetCollection(cfg.DB_NAME, "users")
+	userCollection := dbConn.GetCollection(dbName, "users")
 	log.Println("Database connection established.")
 
+	// 3. Initialize HTTP Router and Shared Middleware
 	router := gin.Default()
 	authMiddleware := auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
 
+	// Dependency Injection: Pass the collection handle to the handlers.
 	userHandler := handlers.NewUserHandler(userCollection)
 
+	// 4. Define API Routes
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "Users Service"})
 	})
@@ -45,19 +56,17 @@ func main() {
 	apiV1 := router.Group("/api/v1")
 	{
 		userRoutes := apiV1.Group("/users")
-
+		// All routes in this group will be protected by the shared auth middleware.
 		userRoutes.Use(authMiddleware)
 		{
 			userRoutes.POST("/onboarding", userHandler.OnboardUser)
 			userRoutes.GET("/me/profile", userHandler.GetUserProfile)
 			userRoutes.PATCH("/me/profile", userHandler.UpdateUserProfile)
 			userRoutes.DELETE("/me", userHandler.DeleteUserAccount)
-			userRoutes.GET("/me/dashboard", userHandler.GetUserDashboard)
-			userRoutes.GET("/me/progress/chapters", userHandler.GetChapterProgress)
-			userRoutes.POST("/me/progress/chapters/:chapterId/complete", userHandler.CompleteChapter)
 		}
 	}
 
+	// 5. Start HTTP Server with Graceful Shutdown
 	srv := &http.Server{
 		Addr:    ":" + cfg.ServerPort,
 		Handler: router,
@@ -70,6 +79,7 @@ func main() {
 		}
 	}()
 
+	// Wait for interrupt signal for a graceful shutdown.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

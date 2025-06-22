@@ -5,7 +5,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"wise-owl/services/users/internal/models"
@@ -14,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // UserHandler holds dependencies, such as the database collection handle.
@@ -52,12 +50,13 @@ func (h *UserHandler) OnboardUser(c *gin.Context) {
 	}
 
 	newUser := models.User{
-		ID:        primitive.NewObjectID(),
-		Auth0ID:   auth0ID.(string),
-		Username:  req.Username,
-		Email:     req.Email,
-		Level:     "N5",
-		Progress:  models.UserProgress{XP: 0, CompletedChapters: []int{}},
+		ID:       primitive.NewObjectID(),
+		Auth0ID:  auth0ID.(string),
+		Username: req.Username,
+		Email:    req.Email,
+		NotificationPrefs: models.NotificationPreferences{
+			Enabled: false, // Notifications are off by default
+		},
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}
@@ -94,7 +93,8 @@ func (h *UserHandler) UpdateUserProfile(c *gin.Context) {
 	auth0ID, _ := c.Get("userID")
 
 	var req struct {
-		Username *string `json:"username"` // Use pointers to detect if a field was provided
+		Username          *string                         `json:"username"`
+		NotificationPrefs *models.NotificationPreferences `json:"notification_preferences"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request", "message": err.Error()})
@@ -104,6 +104,9 @@ func (h *UserHandler) UpdateUserProfile(c *gin.Context) {
 	updates := bson.M{}
 	if req.Username != nil {
 		updates["username"] = *req.Username
+	}
+	if req.NotificationPrefs != nil {
+		updates["notification_prefs"] = *req.NotificationPrefs
 	}
 
 	if len(updates) == 0 {
@@ -143,71 +146,8 @@ func (h *UserHandler) DeleteUserAccount(c *gin.Context) {
 		return
 	}
 
-	// TODO: You would also need to trigger cleanup in other services,
-	//       e.g., by publishing a 'UserDeleted' event.
-
-	c.Status(http.StatusNoContent)
-}
-
-// GetUserDashboard retrieves aggregate stats for the user's dashboard.
-func (h *UserHandler) GetUserDashboard(c *gin.Context) {
-	// For now, we return mock data. In a real app, this would involve
-	// more complex aggregation queries or calls to other services.
-	dashboardData := gin.H{
-		"xp":            1500,
-		"level":         "N5",
-		"review_streak": 5,
-		"words_learned": 120,
-	}
-	c.JSON(http.StatusOK, dashboardData)
-}
-
-// GetChapterProgress retrieves the user's completion status for all chapters.
-func (h *UserHandler) GetChapterProgress(c *gin.Context) {
-	auth0ID, _ := c.Get("userID")
-
-	var user models.User
-	// We only need the 'progress' field, so we use projection to be efficient.
-	opts := options.FindOne().SetProjection(bson.M{"progress": 1})
-	err := h.collection.FindOne(c, bson.M{"auth0_id": auth0ID.(string)}, opts).Decode(&user)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not_found"})
-		return
-	}
-
-	// This is a simplified response. A real app might join this with a list of all chapters.
-	c.JSON(http.StatusOK, user.Progress)
-}
-
-// CompleteChapter marks a chapter as complete for a user.
-func (h *UserHandler) CompleteChapter(c *gin.Context) {
-	auth0ID, _ := c.Get("userID")
-	chapterIDStr := c.Param("chapterId")
-	chapterID, err := strconv.Atoi(chapterIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_chapter_id"})
-		return
-	}
-
-	filter := bson.M{"auth0_id": auth0ID.(string)}
-	// Use $addToSet to ensure the chapter is only added if it doesn't already exist.
-	update := bson.M{
-		"$addToSet": bson.M{"progress.completed_chapters": chapterID},
-		"$set":      bson.M{"updated_at": time.Now().UTC()},
-	}
-
-	result, err := h.collection.UpdateOne(c, filter, update)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "update_failed"})
-		return
-	}
-	if result.MatchedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not_found"})
-		return
-	}
-
-	// TODO: Here you would publish an event or make a gRPC call to the SRS service
-	//       to inform it to seed the vocabulary for this chapter for this user.
+	// TODO: In a real system, you would publish a 'UserDeleted' event here
+	// so other services (like the Quiz Service) can clean up related data.
 
 	c.Status(http.StatusNoContent)
 }
