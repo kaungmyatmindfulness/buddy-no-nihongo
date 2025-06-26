@@ -1,0 +1,40 @@
+// FILE: proto/content/v1/content.proto
+
+syntax = "proto3";
+
+package content.v1;
+
+// The Go package where the generated code will live.
+option go_package = "wise-owl/gen/proto/content/v1";
+
+// The ContentService provides access to textbook content.
+service ContentService {
+  // GetVocabularyBatch retrieves full details for a list of vocabulary IDs.
+  rpc GetVocabularyBatch(GetVocabularyBatchRequest) returns (GetVocabularyBatchResponse);
+}
+
+// The request message containing a list of vocabulary IDs.
+message GetVocabularyBatchRequest {
+  repeated string vocabulary_ids = 1;
+}
+
+// The response message containing a map of vocabulary IDs to Vocabulary objects
+// for efficient lookup on the client side (the quiz-service).
+message GetVocabularyBatchResponse {
+  map<string, Vocabulary> items = 1;
+}
+
+// Vocabulary message mirrors the structure of our Go model.
+// 'optional' is used for fields that can be null in the database.
+message Vocabulary {
+  string id = 1;
+  string kana = 2;
+  optional string kanji = 3;
+  optional string furigana = 4;
+  string romaji = 5;
+  string english = 6;
+  string burmese = 7;
+  string lesson = 8;
+  string type = 9;
+  string word_class = 10;
+}

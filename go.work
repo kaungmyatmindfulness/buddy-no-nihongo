@@ -3,6 +3,7 @@ go 1.24.4
 use (
 	./lib
 	./services/content
+	./services/quiz
 	./services/srs
 	./services/users
 )
