@@ -18,7 +18,7 @@ import (
 	"wise-owl/services/content/internal/handlers"
 	"wise-owl/services/content/internal/seeder"
 
-	pb "wise-owl/gen/proto/content/v1"
+	pb "wise-owl/gen/proto/content"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"

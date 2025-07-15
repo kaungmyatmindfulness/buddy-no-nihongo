@@ -5,7 +5,7 @@ package grpc
 import (
 	"context"
 
-	pb "wise-owl/gen/proto/content/v1"
+	pb "wise-owl/gen/proto/content"
 	"wise-owl/services/content/internal/models"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -63,10 +63,10 @@ func (s *Server) GetVocabularyBatch(ctx context.Context, req *pb.GetVocabularyBa
 			WordClass: vocab.WordClass,
 		}
 		if vocab.Kanji != nil {
-			pbVocab.Kanji = *vocab.Kanji
+			pbVocab.Kanji = vocab.Kanji
 		}
 		if vocab.Furigana != nil {
-			pbVocab.Furigana = *vocab.Furigana
+			pbVocab.Furigana = vocab.Furigana
 		}
 		responseItems[pbVocab.Id] = pbVocab
 	}
