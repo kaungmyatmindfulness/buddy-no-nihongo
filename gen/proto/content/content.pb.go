@@ -4,7 +4,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v5.29.3
-// source: proto/content/v1/content.proto
+// source: proto/content/content.proto
 
 package content
 
@@ -33,7 +33,7 @@ type GetVocabularyBatchRequest struct {
 
 func (x *GetVocabularyBatchRequest) Reset() {
 	*x = GetVocabularyBatchRequest{}
-	mi := &file_proto_content_v1_content_proto_msgTypes[0]
+	mi := &file_proto_content_content_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +45,7 @@ func (x *GetVocabularyBatchRequest) String() string {
 func (*GetVocabularyBatchRequest) ProtoMessage() {}
 
 func (x *GetVocabularyBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_v1_content_proto_msgTypes[0]
+	mi := &file_proto_content_content_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +58,7 @@ func (x *GetVocabularyBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVocabularyBatchRequest.ProtoReflect.Descriptor instead.
 func (*GetVocabularyBatchRequest) Descriptor() ([]byte, []int) {
-	return file_proto_content_v1_content_proto_rawDescGZIP(), []int{0}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetVocabularyBatchRequest) GetVocabularyIds() []string {
@@ -79,7 +79,7 @@ type GetVocabularyBatchResponse struct {
 
 func (x *GetVocabularyBatchResponse) Reset() {
 	*x = GetVocabularyBatchResponse{}
-	mi := &file_proto_content_v1_content_proto_msgTypes[1]
+	mi := &file_proto_content_content_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -91,7 +91,7 @@ func (x *GetVocabularyBatchResponse) String() string {
 func (*GetVocabularyBatchResponse) ProtoMessage() {}
 
 func (x *GetVocabularyBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_v1_content_proto_msgTypes[1]
+	mi := &file_proto_content_content_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -104,7 +104,7 @@ func (x *GetVocabularyBatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVocabularyBatchResponse.ProtoReflect.Descriptor instead.
 func (*GetVocabularyBatchResponse) Descriptor() ([]byte, []int) {
-	return file_proto_content_v1_content_proto_rawDescGZIP(), []int{1}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetVocabularyBatchResponse) GetItems() map[string]*Vocabulary {
@@ -134,7 +134,7 @@ type Vocabulary struct {
 
 func (x *Vocabulary) Reset() {
 	*x = Vocabulary{}
-	mi := &file_proto_content_v1_content_proto_msgTypes[2]
+	mi := &file_proto_content_content_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +146,7 @@ func (x *Vocabulary) String() string {
 func (*Vocabulary) ProtoMessage() {}
 
 func (x *Vocabulary) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_v1_content_proto_msgTypes[2]
+	mi := &file_proto_content_content_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +159,7 @@ func (x *Vocabulary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vocabulary.ProtoReflect.Descriptor instead.
 func (*Vocabulary) Descriptor() ([]byte, []int) {
-	return file_proto_content_v1_content_proto_rawDescGZIP(), []int{2}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Vocabulary) GetId() string {
@@ -232,11 +232,11 @@ func (x *Vocabulary) GetWordClass() string {
 	return ""
 }
 
-var File_proto_content_v1_content_proto protoreflect.FileDescriptor
+var File_proto_content_content_proto protoreflect.FileDescriptor
 
-const file_proto_content_v1_content_proto_rawDesc = "" +
+const file_proto_content_content_proto_rawDesc = "" +
 	"\n" +
-	"\x1eproto/content/v1/content.proto\x12\acontent\"B\n" +
+	"\x1bproto/content/content.proto\x12\acontent\"B\n" +
 	"\x19GetVocabularyBatchRequest\x12%\n" +
 	"\x0evocabulary_ids\x18\x01 \x03(\tR\rvocabularyIds\"\xb1\x01\n" +
 	"\x1aGetVocabularyBatchResponse\x12D\n" +
@@ -265,25 +265,25 @@ const file_proto_content_v1_content_proto_rawDesc = "" +
 	"\x12GetVocabularyBatch\x12\".content.GetVocabularyBatchRequest\x1a#.content.GetVocabularyBatchResponseB\x1cZ\x1awise-owl/gen/proto/contentb\x06proto3"
 
 var (
-	file_proto_content_v1_content_proto_rawDescOnce sync.Once
-	file_proto_content_v1_content_proto_rawDescData []byte
+	file_proto_content_content_proto_rawDescOnce sync.Once
+	file_proto_content_content_proto_rawDescData []byte
 )
 
-func file_proto_content_v1_content_proto_rawDescGZIP() []byte {
-	file_proto_content_v1_content_proto_rawDescOnce.Do(func() {
-		file_proto_content_v1_content_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_content_v1_content_proto_rawDesc), len(file_proto_content_v1_content_proto_rawDesc)))
+func file_proto_content_content_proto_rawDescGZIP() []byte {
+	file_proto_content_content_proto_rawDescOnce.Do(func() {
+		file_proto_content_content_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_content_content_proto_rawDesc), len(file_proto_content_content_proto_rawDesc)))
 	})
-	return file_proto_content_v1_content_proto_rawDescData
+	return file_proto_content_content_proto_rawDescData
 }
 
-var file_proto_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_proto_content_v1_content_proto_goTypes = []any{
+var file_proto_content_content_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_proto_content_content_proto_goTypes = []any{
 	(*GetVocabularyBatchRequest)(nil),  // 0: content.GetVocabularyBatchRequest
 	(*GetVocabularyBatchResponse)(nil), // 1: content.GetVocabularyBatchResponse
 	(*Vocabulary)(nil),                 // 2: content.Vocabulary
 	nil,                                // 3: content.GetVocabularyBatchResponse.ItemsEntry
 }
-var file_proto_content_v1_content_proto_depIdxs = []int32{
+var file_proto_content_content_proto_depIdxs = []int32{
 	3, // 0: content.GetVocabularyBatchResponse.items:type_name -> content.GetVocabularyBatchResponse.ItemsEntry
 	2, // 1: content.GetVocabularyBatchResponse.ItemsEntry.value:type_name -> content.Vocabulary
 	0, // 2: content.ContentService.GetVocabularyBatch:input_type -> content.GetVocabularyBatchRequest
@@ -295,27 +295,27 @@ var file_proto_content_v1_content_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_proto_content_v1_content_proto_init() }
-func file_proto_content_v1_content_proto_init() {
-	if File_proto_content_v1_content_proto != nil {
+func init() { file_proto_content_content_proto_init() }
+func file_proto_content_content_proto_init() {
+	if File_proto_content_content_proto != nil {
 		return
 	}
-	file_proto_content_v1_content_proto_msgTypes[2].OneofWrappers = []any{}
+	file_proto_content_content_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_content_v1_content_proto_rawDesc), len(file_proto_content_v1_content_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_content_content_proto_rawDesc), len(file_proto_content_content_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_content_v1_content_proto_goTypes,
-		DependencyIndexes: file_proto_content_v1_content_proto_depIdxs,
-		MessageInfos:      file_proto_content_v1_content_proto_msgTypes,
+		GoTypes:           file_proto_content_content_proto_goTypes,
+		DependencyIndexes: file_proto_content_content_proto_depIdxs,
+		MessageInfos:      file_proto_content_content_proto_msgTypes,
 	}.Build()
-	File_proto_content_v1_content_proto = out.File
-	file_proto_content_v1_content_proto_goTypes = nil
-	file_proto_content_v1_content_proto_depIdxs = nil
+	File_proto_content_content_proto = out.File
+	file_proto_content_content_proto_goTypes = nil
+	file_proto_content_content_proto_depIdxs = nil
 }
