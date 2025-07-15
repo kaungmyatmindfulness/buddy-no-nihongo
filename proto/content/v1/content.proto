@@ -2,10 +2,10 @@
 
 syntax = "proto3";
 
-package content.v1;
+package content;
 
 // The Go package where the generated code will live.
-option go_package = "wise-owl/gen/proto/content/v1";
+option go_package = "wise-owl/gen/proto/content";
 
 // The ContentService provides access to textbook content.
 service ContentService {

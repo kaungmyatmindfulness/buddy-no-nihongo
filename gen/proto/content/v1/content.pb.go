@@ -6,7 +6,7 @@
 // 	protoc        v5.29.3
 // source: proto/content/v1/content.proto
 
-package v1
+package content
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -236,16 +236,15 @@ var File_proto_content_v1_content_proto protoreflect.FileDescriptor
 
 const file_proto_content_v1_content_proto_rawDesc = "" +
 	"\n" +
-	"\x1eproto/content/v1/content.proto\x12\n" +
-	"content.v1\"B\n" +
+	"\x1eproto/content/v1/content.proto\x12\acontent\"B\n" +
 	"\x19GetVocabularyBatchRequest\x12%\n" +
-	"\x0evocabulary_ids\x18\x01 \x03(\tR\rvocabularyIds\"\xb7\x01\n" +
-	"\x1aGetVocabularyBatchResponse\x12G\n" +
-	"\x05items\x18\x01 \x03(\v21.content.v1.GetVocabularyBatchResponse.ItemsEntryR\x05items\x1aP\n" +
+	"\x0evocabulary_ids\x18\x01 \x03(\tR\rvocabularyIds\"\xb1\x01\n" +
+	"\x1aGetVocabularyBatchResponse\x12D\n" +
+	"\x05items\x18\x01 \x03(\v2..content.GetVocabularyBatchResponse.ItemsEntryR\x05items\x1aM\n" +
 	"\n" +
 	"ItemsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.content.v1.VocabularyR\x05value:\x028\x01\"\x9a\x02\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12)\n" +
+	"\x05value\x18\x02 \x01(\v2\x13.content.VocabularyR\x05value:\x028\x01\"\x9a\x02\n" +
 	"\n" +
 	"Vocabulary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -261,9 +260,9 @@ const file_proto_content_v1_content_proto_rawDesc = "" +
 	"word_class\x18\n" +
 	" \x01(\tR\twordClassB\b\n" +
 	"\x06_kanjiB\v\n" +
-	"\t_furigana2u\n" +
-	"\x0eContentService\x12c\n" +
-	"\x12GetVocabularyBatch\x12%.content.v1.GetVocabularyBatchRequest\x1a&.content.v1.GetVocabularyBatchResponseB\x1fZ\x1dwise-owl/gen/proto/content/v1b\x06proto3"
+	"\t_furigana2o\n" +
+	"\x0eContentService\x12]\n" +
+	"\x12GetVocabularyBatch\x12\".content.GetVocabularyBatchRequest\x1a#.content.GetVocabularyBatchResponseB\x1cZ\x1awise-owl/gen/proto/contentb\x06proto3"
 
 var (
 	file_proto_content_v1_content_proto_rawDescOnce sync.Once
@@ -279,16 +278,16 @@ func file_proto_content_v1_content_proto_rawDescGZIP() []byte {
 
 var file_proto_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_content_v1_content_proto_goTypes = []any{
-	(*GetVocabularyBatchRequest)(nil),  // 0: content.v1.GetVocabularyBatchRequest
-	(*GetVocabularyBatchResponse)(nil), // 1: content.v1.GetVocabularyBatchResponse
-	(*Vocabulary)(nil),                 // 2: content.v1.Vocabulary
-	nil,                                // 3: content.v1.GetVocabularyBatchResponse.ItemsEntry
+	(*GetVocabularyBatchRequest)(nil),  // 0: content.GetVocabularyBatchRequest
+	(*GetVocabularyBatchResponse)(nil), // 1: content.GetVocabularyBatchResponse
+	(*Vocabulary)(nil),                 // 2: content.Vocabulary
+	nil,                                // 3: content.GetVocabularyBatchResponse.ItemsEntry
 }
 var file_proto_content_v1_content_proto_depIdxs = []int32{
-	3, // 0: content.v1.GetVocabularyBatchResponse.items:type_name -> content.v1.GetVocabularyBatchResponse.ItemsEntry
-	2, // 1: content.v1.GetVocabularyBatchResponse.ItemsEntry.value:type_name -> content.v1.Vocabulary
-	0, // 2: content.v1.ContentService.GetVocabularyBatch:input_type -> content.v1.GetVocabularyBatchRequest
-	1, // 3: content.v1.ContentService.GetVocabularyBatch:output_type -> content.v1.GetVocabularyBatchResponse
+	3, // 0: content.GetVocabularyBatchResponse.items:type_name -> content.GetVocabularyBatchResponse.ItemsEntry
+	2, // 1: content.GetVocabularyBatchResponse.ItemsEntry.value:type_name -> content.Vocabulary
+	0, // 2: content.ContentService.GetVocabularyBatch:input_type -> content.GetVocabularyBatchRequest
+	1, // 3: content.ContentService.GetVocabularyBatch:output_type -> content.GetVocabularyBatchResponse
 	3, // [3:4] is the sub-list for method output_type
 	2, // [2:3] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

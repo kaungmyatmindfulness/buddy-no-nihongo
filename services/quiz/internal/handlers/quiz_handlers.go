@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	pb_content "wise-owl/gen/proto/content/v1"
+	pb_content "wise-owl/gen/proto/content"
 	"wise-owl/services/quiz/internal/models"
 
 	"github.com/gin-gonic/gin"

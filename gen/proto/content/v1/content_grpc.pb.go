@@ -6,7 +6,7 @@
 // - protoc             v5.29.3
 // source: proto/content/v1/content.proto
 
-package v1
+package content
 
 import (
 	context "context"
@@ -21,7 +21,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ContentService_GetVocabularyBatch_FullMethodName = "/content.v1.ContentService/GetVocabularyBatch"
+	ContentService_GetVocabularyBatch_FullMethodName = "/content.ContentService/GetVocabularyBatch"
 )
 
 // ContentServiceClient is the client API for ContentService service.
@@ -116,7 +116,7 @@ func _ContentService_GetVocabularyBatch_Handler(srv interface{}, ctx context.Con
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ContentService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "content.v1.ContentService",
+	ServiceName: "content.ContentService",
 	HandlerType: (*ContentServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

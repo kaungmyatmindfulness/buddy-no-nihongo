@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	pb_content "wise-owl/gen/proto/content/v1"
+	pb_content "wise-owl/gen/proto/content"
 	"wise-owl/lib/auth"
 	"wise-owl/lib/config"
 	"wise-owl/lib/database"
