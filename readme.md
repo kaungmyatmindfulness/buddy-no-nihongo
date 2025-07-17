@@ -1,10 +1,10 @@
-# wise-owl
+# wise-owl-golang
 
 [](https://example.com)
 [](https://go.dev/)
 [](https://example.com)
 
-`wise-owl` is the backend system for a Japanese language learning mobile application. It is specifically designed as a study companion for students using the "Minna no Nihongo" textbook series. The system provides a set of microservices to handle curriculum content, user progress, and learning features for vocabulary and grammar retention.
+`wise-owl-golang` is the backend system for a Japanese language learning mobile application. It is specifically designed as a study companion for students using the "Minna no Nihongo" textbook series. The system provides a set of microservices to handle curriculum content, user progress, and learning features for vocabulary and grammar retention.
 
 ---
 
@@ -48,7 +48,7 @@ This project is built using a **Monorepo Microservices Architecture**, managed w
 
 ### Component Diagram
 
-```
+```text
 +-------------+      HTTPS       +-------------------------+
 | Mobile App  |----------------->|   Nginx Reverse Proxy   |
 +-------------+   (Port 80)      |    (API Gateway)        |
@@ -60,21 +60,22 @@ This project is built using a **Monorepo Microservices Architecture**, managed w
            +-----------------------------v-------------v------------------------------------+
            |                                                                                 |
            |  +-----------------+                     +-----------------+     +------------+ |
-           |  |  users-service  |                     | content-service |---->|  content_db |  |
-           |  +-------+---------+                     +-----------------+     +-------------+  |
-           |          |                                                                      |
-           |  +-------v---------+                     +-----------------+     +-------------+  |
-           |  |     users_db    |                     |   quiz-service  |---->|   quiz_db   |  |
-           |  +-----------------+                     +-----------------+     +-------------+  |
+           |  |  users-service  |                     | content-service |---->| content_db | |
+           |  +-------+---------+                     +-----------------+     | (MongoDB)  | |
+           |          |                                        |              +------------+ |
+           |  +-------v---------+     gRPC           +-----------------+     +-------------+ |
+           |  |     users_db    |     50052          |   quiz-service  |---->|   quiz_db   | |
+           |  |   (MongoDB)     |<-------------------|   (standalone)  |     | (MongoDB)   | |
+           |  +-----------------+                     +-----------------+     +-------------+ |
            |                                                                                 |
            +---------------------------------------------------------------------------------+
 ```
 
 ### Service Breakdown
 
-- **Users Service:** Manages user identity, profiles, and chapter completion/unlock status. It acts as the gRPC server for providing user data internally.
-- **Content Service:** A read-only service that delivers the static learning content from the "Minna no Nihongo" textbooks.
-- **Quiz Service:** Handles quiz generation and management for testing user knowledge.
+- **Users Service:** Manages user identity, profiles, and chapter completion/unlock status. Provides REST API endpoints for user management and authentication via Auth0.
+- **Content Service:** A dual-purpose service that provides both REST API endpoints for mobile clients and gRPC endpoints for internal service communication. Delivers static learning content from the "Minna no Nihongo" textbooks with automatic data seeding.
+- **Quiz Service:** Handles quiz generation and management for testing user knowledge. Currently runs as a standalone service and communicates with the content service via gRPC to fetch vocabulary data.
 
 ### Database Design
 
@@ -92,8 +93,8 @@ The application follows the **Twelve-Factor App** methodology for configuration.
 
 | Category                     | Technology                                |
 | ---------------------------- | ----------------------------------------- |
-| **Backend**                  | Go (Golang) 1.18+, Gin, GORM              |
-| **Database**                 | PostgreSQL                                |
+| **Backend**                  | Go (Golang) 1.24+, Gin                    |
+| **Database**                 | MongoDB                                   |
 | **API & Communication**      | REST, gRPC, Protocol Buffers (Protobuf)   |
 | **Build & Development**      | Go Workspaces, Docker & Docker Compose    |
 | **Infrastructure & Gateway** | Nginx                                     |
@@ -103,26 +104,44 @@ The application follows the **Twelve-Factor App** methodology for configuration.
 ## Project Structure
 
 ```
-wise-owl/
-├── .env.docker         # Environment variables for the full Docker stack
-├── .env.local          # Environment variables for running Go code on the host
-├── .env.example        # A template for environment variables
+wise-owl-golang/
+├── .envrc               # direnv configuration for environment variables
+├── .env.example         # A template for environment variables
 ├── .gitignore
-├── go.work             # Defines the Go workspace for local development
-├── lib/                # Shared Go libraries
-│   └── go.mod
-├── services/           # Contains all microservices
+├── go.work              # Defines the Go workspace for local development
+├── go.work.sum          # Go workspace dependencies checksum
+├── readme.md
+├── lib/                 # Shared Go libraries
+│   ├── go.mod
+│   ├── auth/            # Auth0 JWT validation middleware
+│   ├── config/          # Configuration management with Viper
+│   └── database/        # MongoDB connection singleton
+├── gen/                 # Generated protobuf Go code
+│   ├── go.mod
+│   └── proto/content/   # Generated gRPC stubs for content service
+├── proto/               # Protobuf definitions for gRPC
+│   └── content/         # Content service protobuf schema
+├── services/            # Contains all microservices
 │   ├── users/
-│   │   ├── Dockerfile  # Self-contained Dockerfile for this service
-│   │   ├── cmd/main.go
-│   │   └── go.mod
-│   ├── quiz/
-│   │   └── ...
-│   └── content/
-│       └── ...
-├── proto/              # Protobuf definitions for gRPC
-├── docker-compose.yml  # Main orchestration file for the full stack
-└── docker-compose.dev.yml # Orchestration file for backing services only
+│   │   ├── Dockerfile   # Self-contained Dockerfile for this service
+│   │   ├── cmd/main.go  # Entry point with HTTP server
+│   │   ├── go.mod
+│   │   └── internal/    # Handlers and models
+│   ├── content/
+│   │   ├── Dockerfile   # Self-contained Dockerfile for this service
+│   │   ├── cmd/main.go  # Entry point with dual HTTP/gRPC servers
+│   │   ├── go.mod
+│   │   ├── internal/    # Handlers, gRPC server, and models
+│   │   └── seed/        # JSON seed data for vocabulary
+│   └── quiz/
+│       ├── cmd/main.go  # Entry point with HTTP server and gRPC client
+│       ├── go.mod
+│       └── internal/    # Handlers and models
+├── nginx/
+│   └── default.conf     # Nginx reverse proxy configuration
+├── docker-compose.yml       # Main orchestration file for the full stack
+├── docker-compose.dev.yml   # Orchestration file for MongoDB only
+└── vendor/              # Vendored dependencies for containerized builds
 ```
 
 ## Local Development Setup
@@ -131,7 +150,7 @@ Follow these steps to get the entire application running on your local machine.
 
 ### Prerequisites
 
-- **Go 1.18+**
+- **Go 1.24+**
 - **Docker & Docker Compose**
 
 ### First-Time Setup
@@ -140,26 +159,17 @@ Follow these steps to get the entire application running on your local machine.
 
    ```bash
    git clone <repository_url>
-   cd wise-owl
+   cd wise-owl-golang
    ```
 
-2. **Create Environment Files:**
-   Copy the example template to create your two local development environment files.
+2. **Set up Environment Variables:**
+   Copy the example template and configure your environment using direnv (recommended) or manual sourcing.
 
    ```bash
-   cp .env.example .env.docker
-   cp .env.example .env.local
+   cp .env.example .envrc
+   # Edit .envrc with your specific values
+   direnv allow  # If using direnv for automatic environment loading
    ```
-
-3. **Configure for Host Development:**
-   Open the `.env.local` file and change the `DB_HOST` to point to `localhost`.
-
-   ```ini
-   # In .env.local
-   DB_HOST=localhost
-   ```
-
-   The `.env.docker` file should keep `DB_HOST=db`.
 
 ### Development Workflows
 
@@ -167,9 +177,9 @@ You have two primary ways to run the application, each suited for different task
 
 #### **Workflow A: The Full Simulation (Docker-Based)**
 
-Use this to test the entire system in a production-like environment.
+Use this to test the system in a production-like environment. **Note:** Currently only the users and content services are orchestrated in Docker.
 
-1. **Sync & Vendor Dependencies:** From the project root, run these two commands to prepare for the build.
+1. **Sync & Vendor Dependencies:** From the project root, run these commands to prepare for the build.
 
    ```bash
    go work sync
@@ -182,20 +192,27 @@ Use this to test the entire system in a production-like environment.
    docker-compose up --build -d
    ```
 
+   This will start:
+
+   - Nginx reverse proxy (port 80)
+   - Users service (with MongoDB)
+   - Content service (with MongoDB)
+   - MongoDB database
+
 #### **Workflow B: The Fast / Hybrid Workflow (Host-Based)**
 
 Use this for active, day-to-day coding for a much faster feedback loop.
 
-1. **Start Backing Services:** In one terminal, start just the database using the dev-specific compose file.
+1. **Start Backing Services:** In one terminal, start just MongoDB using the dev-specific compose file.
 
    ```bash
    docker-compose -f docker-compose.dev.yml up
    ```
 
-2. **Run Go Services Directly:** In separate terminals, run each Go service directly on your host. Your `.env.local` file must be sourced (tools like `direnv` are highly recommended for this).
+2. **Run Go Services Directly:** In separate terminals, run each Go service directly on your host. Ensure your environment variables are loaded (direnv is highly recommended).
 
    ```bash
-   # In Terminal 2 (assuming .env.local is sourced)
+   # In Terminal 2 (with environment loaded)
    go run ./services/users/cmd/main.go
 
    # In Terminal 3
@@ -204,6 +221,8 @@ Use this for active, day-to-day coding for a much faster feedback loop.
    # In Terminal 4
    go run ./services/quiz/cmd/main.go
    ```
+
+   **Note:** The quiz service is currently configured but not included in the Docker stack. It can be run manually for development.
 
 ## API Documentation
 
