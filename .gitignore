@@ -1,7 +1,6 @@
 # Go build files
 # These are the compiled executables. We build them inside Docker, so we don't need them in Git.
 /services/users/main
-/services/srs/main
 /services/content/main
 
 # IDE and OS files

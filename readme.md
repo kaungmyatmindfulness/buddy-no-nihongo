@@ -4,7 +4,7 @@
 [](https://go.dev/)
 [](https://example.com)
 
-`wise-owl` is the backend system for a Japanese language learning mobile application. It is specifically designed as a study companion for students using the "Minna no Nihongo" textbook series. The system provides a set of microservices to handle curriculum content, user progress, and a powerful Spaced Repetition System (SRS) for long-term vocabulary and grammar retention.
+`wise-owl` is the backend system for a Japanese language learning mobile application. It is specifically designed as a study companion for students using the "Minna no Nihongo" textbook series. The system provides a set of microservices to handle curriculum content, user progress, and learning features for vocabulary and grammar retention.
 
 ---
 
@@ -32,8 +32,7 @@
 
 - **Curriculum-Based Content:** Learning content is structured to mirror the chapters of the "Minna no Nihongo" textbooks.
 - **Progression System:** A chapter's grammar is unlocked only after its vocabulary is learned. A manual "Mark as Complete" option is available for users to control their own progression.
-- **Spaced Repetition System (SRS):** An intelligent review engine schedules items to ensure long-term retention.
-- **Multi-Mode Quizzing:** SRS sessions dynamically generate different question types (Flashcards, Meaning Quiz, Word Quiz) to test knowledge thoroughly.
+- **Multi-Mode Quizzing:** Quiz sessions dynamically generate different question types (Flashcards, Meaning Quiz, Word Quiz) to test knowledge thoroughly.
 - **Filtered Review Sessions:** Users can start highly-focused study sessions by filtering items based on specific chapters, difficulty ratings, or both.
 - **Real-Time Progress Saving:** Each answer in a review session is saved immediately, ensuring no progress is lost.
 
@@ -60,12 +59,12 @@ This project is built using a **Monorepo Microservices Architecture**, managed w
                                        |             |
            +-----------------------------v-------------v------------------------------------+
            |                                                                                 |
-           |  +-----------------+    Internal gRPC    +-----------------+     +------------+ |
-           |  |   srs-service   |-------------------->|  users-service  |---->|  users_db  | |
-           |  +-------+---------+   (GetUsers Call)   +-----------------+     +------------+ |
+           |  +-----------------+                     +-----------------+     +------------+ |
+           |  |  users-service  |                     | content-service |---->|  content_db |  |
+           |  +-------+---------+                     +-----------------+     +-------------+  |
            |          |                                                                      |
            |  +-------v---------+                     +-----------------+     +-------------+  |
-           |  |     srs_db      |                     | content-service |---->|  content_db |  |
+           |  |     users_db    |                     |   quiz-service  |---->|   quiz_db   |  |
            |  +-----------------+                     +-----------------+     +-------------+  |
            |                                                                                 |
            +---------------------------------------------------------------------------------+
@@ -75,15 +74,15 @@ This project is built using a **Monorepo Microservices Architecture**, managed w
 
 - **Users Service:** Manages user identity, profiles, and chapter completion/unlock status. It acts as the gRPC server for providing user data internally.
 - **Content Service:** A read-only service that delivers the static learning content from the "Minna no Nihongo" textbooks.
-- **SRS Service:** The core learning engine that manages the user's review deck, schedules items via SRS algorithms, and generates quiz sessions. It acts as a gRPC client to fetch user data when needed.
+- **Quiz Service:** Handles quiz generation and management for testing user knowledge.
 
 ### Database Design
 
-We follow the **Database per Service** pattern. A single PostgreSQL container runs multiple, logically separate databases (`users_db`, `srs_db`, `content_db`). Each service has credentials to access only its own database, ensuring loose coupling. Database creation is handled automatically on first launch by an `init.sql` script.
+We follow the **Database per Service** pattern. A single MongoDB container runs multiple, logically separate databases (`users_db`, `content_db`, `quiz_db`). Each service has credentials to access only its own database, ensuring loose coupling. Database connection is handled by the shared `lib/database` package.
 
 ### Service-to-Service Communication
 
-All internal, synchronous communication between services is handled via **gRPC**. This provides a high-performance, strongly-typed contract for internal APIs. For example, `srs-service` calls the `users-service` to fetch user details.
+All internal, synchronous communication between services is handled via **gRPC**. This provides a high-performance, strongly-typed contract for internal APIs. For example, the `quiz-service` calls the `content-service` to fetch vocabulary batches for quiz generation.
 
 ### Configuration Strategy
 
@@ -117,7 +116,7 @@ wise-owl/
 │   │   ├── Dockerfile  # Self-contained Dockerfile for this service
 │   │   ├── cmd/main.go
 │   │   └── go.mod
-│   ├── srs/
+│   ├── quiz/
 │   │   └── ...
 │   └── content/
 │       └── ...
@@ -200,7 +199,10 @@ Use this for active, day-to-day coding for a much faster feedback loop.
    go run ./services/users/cmd/main.go
 
    # In Terminal 3
-   go run ./services/srs/cmd/main.go
+   go run ./services/content/cmd/main.go
+
+   # In Terminal 4
+   go run ./services/quiz/cmd/main.go
    ```
 
 ## API Documentation

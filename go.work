@@ -5,6 +5,5 @@ use (
 	./lib
 	./services/content
 	./services/quiz
-	./services/srs
 	./services/users
 )

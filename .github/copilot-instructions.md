@@ -7,10 +7,9 @@ This document provides instructions for AI coding agents to effectively contribu
 This is a **Japanese language learning backend** built as a monorepo microservices system using Go Workspaces. The architecture follows a domain-driven design with clear service boundaries:
 
 - **API Gateway (Nginx):** Single entry point routing to backend services via `nginx/default.conf`
-- **Microservices:** Four domain-specific services in `services/`:
+- **Microservices:** Three domain-specific services in `services/`:
   - `users`: Authentication with Auth0 JWT validation
   - `content`: Educational content (vocabulary, lessons) with JSON seeding
-  - `srs`: Spaced Repetition System algorithm
   - `quiz`: Quiz generation and management
 - **Shared Libraries:** Common code in `lib/` (database, config, auth middleware)
 - **gRPC Communication:** Inter-service calls using protobuf definitions in `proto/`
@@ -21,7 +20,7 @@ This project uses **Go Workspaces** (`go.work`) for monorepo management. All ser
 
 ```bash
 # The workspace includes: gen/, lib/, and all services/
-go work use ./lib ./services/content ./services/users
+go work use ./lib ./services/content ./services/users ./services/quiz
 ```
 
 Each service has its own `go.mod` but shares dependencies through the workspace.
@@ -108,6 +107,6 @@ upstream new_service {
 ## Critical Integration Points
 
 - **Content→Quiz:** Quiz service calls content service via gRPC to fetch vocabulary batches
-- **SRS→Users:** SRS tracks user progress and learning intervals
+- **Quiz→Users:** Quiz service tracks user progress and performance
 - **All Services→MongoDB:** Shared MongoDB instance, separate databases per service
 - **Mobile Client→Nginx:** All API calls go through nginx gateway on port 80

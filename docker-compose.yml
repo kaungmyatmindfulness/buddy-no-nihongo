@@ -8,7 +8,6 @@ services:
     volumes: ["./nginx:/etc/nginx/conf.d:ro"]
     depends_on:
       - users-service
-      - srs-service
       - content-service
 
   # 2. Users Service
@@ -23,19 +22,7 @@ services:
       - DB_NAME=users_db
     depends_on: [mongodb]
 
-  # 3. SRS Service
-  srs-service:
-    container_name: wo-srs-service
-    build:
-      context: .
-      dockerfile: ./services/srs/Dockerfile
-    restart: unless-stopped
-    env_file: [./.env.docker]
-    environment:
-      - DB_NAME=srs_db
-    depends_on: [mongodb]
-
-  # 4. Content Service
+  # 3. Content Service
   content-service:
     container_name: wo-content-service
     build:
@@ -47,7 +34,7 @@ services:
       - DB_NAME=content_db
     depends_on: [mongodb]
 
-  # 5. MongoDB Database
+  # 4. MongoDB Database
   mongodb:
     image: mongo:latest
     container_name: wo-mongodb
