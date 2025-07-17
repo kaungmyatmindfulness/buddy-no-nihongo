@@ -55,7 +55,7 @@ This project is built using a **Monorepo Microservices Architecture**, managed w
                                  +-----+-------------+-----+
                                        |             |
                                        | HTTP        | HTTP
-                     Docker's Virtual Network|             |
+               Docker's Virtual Network|             |
                                        |             |
            +-----------------------------v-------------v------------------------------------+
            |                                                                                 |
