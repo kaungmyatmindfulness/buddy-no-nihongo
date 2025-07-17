@@ -4,49 +4,110 @@ This document provides instructions for AI coding agents to effectively contribu
 
 ## Architecture Overview
 
-This project is a microservices-based application built with Go. The architecture consists of several key components:
+This is a **Japanese language learning backend** built as a monorepo microservices system using Go Workspaces. The architecture follows a domain-driven design with clear service boundaries:
 
-- **Nginx API Gateway:** All incoming traffic is routed through Nginx, which acts as an API gateway. The configuration can be found in `nginx/default.conf`. It directs requests to the appropriate backend service.
+- **API Gateway (Nginx):** Single entry point routing to backend services via `nginx/default.conf`
+- **Microservices:** Four domain-specific services in `services/`:
+  - `users`: Authentication with Auth0 JWT validation
+  - `content`: Educational content (vocabulary, lessons) with JSON seeding
+  - `srs`: Spaced Repetition System algorithm
+  - `quiz`: Quiz generation and management
+- **Shared Libraries:** Common code in `lib/` (database, config, auth middleware)
+- **gRPC Communication:** Inter-service calls using protobuf definitions in `proto/`
 
-- **Microservices:** The core logic is split into several Go microservices located in the `services/` directory:
+## Go Workspace Pattern
 
-  - `services/users`: Manages user authentication and data.
-  - `services/content`: Handles educational content like vocabularies.
-  - `services/srs`: Implements the Spaced Repetition System (SRS) for learning.
-  - `services/quiz`: Manages quizzes for users.
+This project uses **Go Workspaces** (`go.work`) for monorepo management. All services and libraries are defined as separate modules but work together seamlessly:
 
-- **Database:** All services share a single MongoDB instance for data storage. Each service manages its own database within this instance.
+```bash
+# The workspace includes: gen/, lib/, and all services/
+go work use ./lib ./services/content ./services/users
+```
 
-- **gRPC Communication:** Services communicate with each other via gRPC for efficient, strongly-typed inter-service calls. The protobuf definitions are located in `proto/`, and the generated Go code is in `gen/proto/`. When you modify a `.proto` file, you will need to regenerate the corresponding `.pb.go` and `_grpc.pb.go` files.
+Each service has its own `go.mod` but shares dependencies through the workspace.
 
 ## Development Workflow
 
-### Running the Application
+### Local Development Setup
 
-- **Production Environment:** To run the application in a production-like environment, use the main `docker-compose.yml` file:
+```bash
+# 1. Start only MongoDB for local development
+docker-compose -f docker-compose.dev.yml up -d
 
-  ```bash
-  docker-compose up --build
-  ```
+# 2. Run individual services locally (they auto-connect to containerized MongoDB)
+cd services/content && go run cmd/main.go
 
-- **Local Development:** For local development, a separate Docker Compose file is provided to run only the essential dependencies, like the database. Use `docker-compose.dev.yml`:
-  ```bash
-  docker-compose -f docker-compose.dev.yml up
-  ```
-  This allows you to run individual services directly on your local machine for easier debugging.
+# 3. Or run full stack in containers
+docker-compose up --build
+```
 
-### Project Structure
+### gRPC Code Generation
 
-- `services/`: Each microservice lives in its own subdirectory here. Each service is a self-contained Go project with its own `go.mod` file.
-- `proto/`: Contains all the `.proto` files that define the gRPC services and messages.
-- `gen/`: Contains the Go code generated from the `.proto` files. Do not edit files in this directory manually.
-- `lib/`: A shared library containing common packages used across multiple services, such as database connections (`lib/database`), configuration (`lib/config`), and authentication middleware (`lib/auth`).
-- `docker-compose.yml`: Defines the services for a production environment.
-- `docker-compose.dev.yml`: Defines the services for local development.
+When modifying `.proto` files, regenerate Go code:
 
-## Coding Conventions
+```bash
+# From project root
+protoc --go_out=gen --go-grpc_out=gen proto/content/content.proto
+```
 
-- **Dependency Management:** Go modules are used for dependency management. Each service in `services/` has its own `go.mod` and `go.sum`. The shared `lib` also has its own module files.
-- **Configuration:** Services are configured using environment variables, which are loaded via `.env.docker` or `.env.local` files as specified in the Docker Compose files. The `lib/config` package provides a standardized way to access configuration values.
-- **Error Handling:** Follow standard Go error handling practices. Errors should be handled gracefully and not ignored.
-- **Database Models:** Each service that interacts with the database has a `internal/models` directory containing the data structures that map to MongoDB documents.
+## Key Patterns & Conventions
+
+### Service Structure
+
+Each service follows this exact pattern:
+
+```
+services/{service}/
+├── cmd/main.go              # Entry point with dual HTTP/gRPC servers
+├── internal/
+│   ├── handlers/            # HTTP REST handlers
+│   ├── grpc/server.go       # gRPC service implementation
+│   └── models/              # MongoDB document structs
+└── seed/                    # JSON seed data (content service only)
+```
+
+### Database Per Service
+
+- Each service gets its own MongoDB database (e.g., `users_db`, `content_db`)
+- Services use the shared `lib/database` singleton connection
+- Models use MongoDB driver with BSON tags: `bson:"field_name"`
+
+### Configuration Pattern
+
+All services use `lib/config` with Viper for environment variables:
+
+```go
+// Services load config identically
+cfg, err := config.LoadConfig()
+// DB_NAME environment variable determines which database to use
+```
+
+### Auth0 Integration
+
+The `lib/auth/middleware.go` provides JWT validation middleware for Gin routes:
+
+```go
+// Apply to protected routes
+router.Use(auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience))
+```
+
+### Data Seeding
+
+The content service auto-seeds from `seed/vocabulary.json` on startup - implement similar seeding patterns for other services that need initial data.
+
+### Nginx Routing
+
+Services are exposed through nginx upstreams. Add new services to `nginx/default.conf`:
+
+```nginx
+upstream new_service {
+    server new-service:8080;
+}
+```
+
+## Critical Integration Points
+
+- **Content→Quiz:** Quiz service calls content service via gRPC to fetch vocabulary batches
+- **SRS→Users:** SRS tracks user progress and learning intervals
+- **All Services→MongoDB:** Shared MongoDB instance, separate databases per service
+- **Mobile Client→Nginx:** All API calls go through nginx gateway on port 80
