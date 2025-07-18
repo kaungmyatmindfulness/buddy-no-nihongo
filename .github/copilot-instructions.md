@@ -9,7 +9,7 @@ This is a **Japanese language learning backend** built as a monorepo microservic
 - **API Gateway (Nginx):** Single entry point routing to backend services via `nginx/default.conf`
 - **Microservices:** Three domain-specific services in `services/`:
   - `users`: Authentication with Auth0 JWT validation
-  - `content`: Educational content (vocabulary, lessons) with JSON seeding
+  - `content`: Educational content (vocabulary, lessons) with JSON seeding, runs dual HTTP/gRPC servers
   - `quiz`: Quiz generation and management
 - **Shared Libraries:** Common code in `lib/` (database, config, auth middleware)
 - **gRPC Communication:** Inter-service calls using protobuf definitions in `proto/`
@@ -20,24 +20,45 @@ This project uses **Go Workspaces** (`go.work`) for monorepo management. All ser
 
 ```bash
 # The workspace includes: gen/, lib/, and all services/
-go work use ./lib ./services/content ./services/users ./services/quiz
+go work use ./gen ./lib ./services/content ./services/users ./services/quiz
 ```
 
 Each service has its own `go.mod` but shares dependencies through the workspace.
 
 ## Development Workflow
 
-### Local Development Setup
+### Required: Use dev.sh Script
+
+**ALWAYS use the `./dev.sh` script** for development operations. Never run Docker commands directly:
 
 ```bash
-# 1. Start only MongoDB for local development
-docker-compose -f docker-compose.dev.yml up -d
+# Setup environment (first time only)
+./dev.sh setup
 
-# 2. Run individual services locally (they auto-connect to containerized MongoDB)
+# Start full development stack with hot reload
+./dev.sh start
+
+# View logs (all services or specific service)
+./dev.sh logs
+./dev.sh logs content-service
+
+# Stop/restart services
+./dev.sh stop
+./dev.sh restart
+
+# Clean rebuild after Dockerfile changes
+./dev.sh build
+```
+
+### Alternative Development Options
+
+```bash
+# 1. MongoDB only (run services locally with go run)
+docker-compose -f docker-compose.dev.yml up -d mongodb
 cd services/content && go run cmd/main.go
 
-# 3. Or run full stack in containers
-docker-compose up --build
+# 2. Full containerized stack with hot reload (recommended)
+./dev.sh start
 ```
 
 ### gRPC Code Generation
@@ -45,9 +66,18 @@ docker-compose up --build
 When modifying `.proto` files, regenerate Go code:
 
 ```bash
-# From project root
+# From project root - regenerates files in gen/proto/
 protoc --go_out=gen --go-grpc_out=gen proto/content/content.proto
 ```
+
+### Hot Reload System
+
+Development uses **Air** for hot reloading with service-specific `.air.toml` configs:
+
+- Watches `services/{service}`, `lib/`, and `gen/` directories
+- Auto-rebuilds on `.go`, `.json` file changes
+- Excludes `_test.go` files and `vendor/` directory
+- Build artifacts go to `tmp/` directory
 
 ## Key Patterns & Conventions
 
@@ -57,19 +87,32 @@ Each service follows this exact pattern:
 
 ```
 services/{service}/
-├── cmd/main.go              # Entry point with dual HTTP/gRPC servers
+├── cmd/main.go              # Entry point, content service runs dual HTTP+gRPC
 ├── internal/
-│   ├── handlers/            # HTTP REST handlers
-│   ├── grpc/server.go       # gRPC service implementation
-│   └── models/              # MongoDB document structs
-└── seed/                    # JSON seed data (content service only)
+│   ├── handlers/            # HTTP REST handlers for Gin
+│   ├── grpc/server.go       # gRPC service implementation (content only)
+│   └── models/              # MongoDB document structs with bson tags
+├── seed/                    # JSON seed data (content service only)
+├── .air.toml                # Hot reload configuration
+└── Dockerfile.dev           # Development container with Air
 ```
+
+### Environment Configuration
+
+**Critical:** Each service requires specific environment variables:
+
+- `DB_NAME`: Determines MongoDB database (e.g., `users_db`, `content_db`)
+- `SERVER_PORT`: Service port (default 8080)
+- `MONGODB_URI`: Connection string to MongoDB
+- `AUTH0_DOMAIN` & `AUTH0_AUDIENCE`: For JWT validation
+
+Use `.env.local` file (created by `./dev.sh setup`) - **never commit this file**.
 
 ### Database Per Service
 
-- Each service gets its own MongoDB database (e.g., `users_db`, `content_db`)
-- Services use the shared `lib/database` singleton connection
-- Models use MongoDB driver with BSON tags: `bson:"field_name"`
+- Each service gets its own MongoDB database via `DB_NAME` env var
+- Services use shared `lib/database` singleton connection
+- Models use MongoDB driver with BSON tags: `bson:"field_name,omitempty"`
 
 ### Configuration Pattern
 
@@ -96,13 +139,26 @@ The content service auto-seeds from `seed/vocabulary.json` on startup - implemen
 
 ### Nginx Routing
 
-Services are exposed through nginx upstreams. Add new services to `nginx/default.conf`:
+Services are exposed through nginx upstreams in `nginx/default.conf`. Add new services:
 
 ```nginx
 upstream new_service {
     server new-service:8080;
 }
+
+location /api/v1/new/ {
+    proxy_pass http://new_service;
+    # Standard proxy headers are pre-configured
+}
 ```
+
+### Dual Server Pattern (Content Service)
+
+Content service runs **both HTTP and gRPC servers** concurrently:
+
+- HTTP (port 8080): REST API for mobile clients
+- gRPC (port 50052): Internal service communication
+- Shared database connection and models between both servers
 
 ## Critical Integration Points
 

@@ -9,6 +9,7 @@ services:
     depends_on:
       - users-service
       - content-service
+      - quiz-service
 
   # 2. Users Service
   users-service:
@@ -34,7 +35,19 @@ services:
       - DB_NAME=content_db
     depends_on: [mongodb]
 
-  # 4. MongoDB Database
+  # 4. Quiz Service
+  quiz-service:
+    container_name: wo-quiz-service
+    build:
+      context: .
+      dockerfile: ./services/quiz/Dockerfile
+    restart: unless-stopped
+    env_file: [./.env.docker]
+    environment:
+      - DB_NAME=quiz_db
+    depends_on: [mongodb]
+
+  # 5. MongoDB Database
   mongodb:
     image: mongo:latest
     container_name: wo-mongodb

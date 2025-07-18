@@ -162,67 +162,140 @@ Follow these steps to get the entire application running on your local machine.
    cd wise-owl-golang
    ```
 
-2. **Set up Environment Variables:**
-   Copy the example template and configure your environment using direnv (recommended) or manual sourcing.
+2. **Quick Start (Recommended):**
 
    ```bash
-   cp .env.example .envrc
-   # Edit .envrc with your specific values
-   direnv allow  # If using direnv for automatic environment loading
+   # Set up environment variables
+   ./dev.sh setup
+
+   # Edit .env.local with your values (Auth0 domain, audience, MongoDB credentials)
+   # At minimum, set:
+   # - MONGO_INITDB_ROOT_USERNAME=admin
+   # - MONGO_INITDB_ROOT_PASSWORD=password
+   # - AUTH0_DOMAIN=your-domain.auth0.com
+   # - AUTH0_AUDIENCE=your-api-identifier
+
+   # Start all services with hot reload
+   ./dev.sh start
    ```
+
+   Your services will be running at:
+
+   - API Gateway: <http://localhost>
+   - Users Service: <http://localhost:8081>
+   - Content Service: <http://localhost:8082>
+   - Quiz Service: <http://localhost:8083>
 
 ### Development Workflows
 
-You have two primary ways to run the application, each suited for different tasks.
+You have **three primary ways** to run the application, each suited for different development needs:
 
-#### **Workflow A: The Full Simulation (Docker-Based)**
+#### **Workflow A: Full Development Environment (Docker with Hot Reload) - RECOMMENDED**
 
-Use this to test the system in a production-like environment. **Note:** Currently only the users and content services are orchestrated in Docker.
+**Best for:** Active development with automatic code reloading and consistent environment.
 
-1. **Sync & Vendor Dependencies:** From the project root, run these commands to prepare for the build.
+1. **Initial Setup:**
+
+   ```bash
+   # Copy environment template and configure
+   ./dev.sh setup
+   # Edit .env.local with your specific values (Auth0, MongoDB credentials, etc.)
+   ```
+
+2. **Start All Services with Hot Reload:**
+
+   ```bash
+   # Start everything with hot reloading
+   ./dev.sh start
+   ```
+
+   This starts:
+
+   - Nginx reverse proxy (port 80)
+   - Users service with hot reload (port 8081)
+   - Content service with hot reload (port 8082)
+   - Quiz service with hot reload (port 8083)
+   - MongoDB database (port 27017)
+
+3. **Development Commands:**
+
+   ```bash
+   # View logs for all services
+   ./dev.sh logs
+
+   # View logs for specific service
+   ./dev.sh logs content-service
+
+   # Restart all services
+   ./dev.sh restart
+
+   # Stop all services
+   ./dev.sh stop
+
+   # Rebuild containers (after Dockerfile changes)
+   ./dev.sh build
+
+   # Clean up everything (containers, volumes, images)
+   ./dev.sh clean
+   ```
+
+   **Code changes** in any service will automatically trigger rebuilds and restarts thanks to Air hot reloading.
+
+#### **Workflow B: Hybrid Development (Local + Docker)**
+
+**Best for:** When you need to debug specific services locally while keeping others containerized.
+
+1. **Start Infrastructure Only:**
+
+   ```bash
+   docker-compose -f docker-compose.dev.yml up mongodb -d
+   ```
+
+2. **Run Specific Services Locally:**
+
+   ```bash
+   # In separate terminals, run services you want to debug locally:
+   cd services/content && go run cmd/main.go
+   cd services/users && go run cmd/main.go
+   cd services/quiz && go run cmd/main.go
+   ```
+
+#### **Workflow C: Production Simulation (Full Docker)**
+
+**Best for:** Testing production-like deployment and final integration testing.
+
+1. **Sync & Vendor Dependencies:**
 
    ```bash
    go work sync
    go work vendor
    ```
 
-2. **Build & Run:** Use Docker Compose to build and start all containers.
+2. **Build & Run Production Stack:**
 
    ```bash
    docker-compose up --build -d
    ```
 
-   This will start:
+### Access Points
 
-   - Nginx reverse proxy (port 80)
-   - Users service (with MongoDB)
-   - Content service (with MongoDB)
-   - MongoDB database
+When running the full development environment:
 
-#### **Workflow B: The Fast / Hybrid Workflow (Host-Based)**
+- **API Gateway (Nginx):** <http://localhost>
+- **Direct Service Access:**
+  - Users Service: <http://localhost:8081>
+  - Content Service: <http://localhost:8082>
+  - Quiz Service: <http://localhost:8083>
+- **Database:** `mongodb://localhost:27017`
 
-Use this for active, day-to-day coding for a much faster feedback loop.
+### Hot Reloading
 
-1. **Start Backing Services:** In one terminal, start just MongoDB using the dev-specific compose file.
+The development setup uses [Air](https://github.com/air-verse/air) for automatic Go code reloading:
 
-   ```bash
-   docker-compose -f docker-compose.dev.yml up
-   ```
-
-2. **Run Go Services Directly:** In separate terminals, run each Go service directly on your host. Ensure your environment variables are loaded (direnv is highly recommended).
-
-   ```bash
-   # In Terminal 2 (with environment loaded)
-   go run ./services/users/cmd/main.go
-
-   # In Terminal 3
-   go run ./services/content/cmd/main.go
-
-   # In Terminal 4
-   go run ./services/quiz/cmd/main.go
-   ```
-
-   **Note:** The quiz service is currently configured but not included in the Docker stack. It can be run manually for development.
+- **File Watching:** Monitors `.go` files in all service directories
+- **Fast Rebuilds:** Only rebuilds the specific service that changed
+- **Automatic Restart:** Services restart immediately after successful compilation
+- **Build Logs:** Compilation errors are shown in real-time via `./dev.sh logs`
 
 ## API Documentation
 

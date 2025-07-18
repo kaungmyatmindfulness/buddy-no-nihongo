@@ -1,5 +1,6 @@
 // FILE: services/users/cmd/main.go
 // This is the entry point for the Wise Owl Users Service. It wires everything together.
+// Hot reload test comment - if you see this rebuild, hot reload is working!
 
 package main
 

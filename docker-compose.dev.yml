@@ -1,4 +1,117 @@
 services:
+  # 1. Nginx: The API Gateway
+  nginx:
+    image: nginx:stable-alpine
+    container_name: wo-nginx-dev
+    restart: unless-stopped
+    ports: ["80:80"]
+    volumes:
+      - "./nginx:/etc/nginx/conf.d:ro"
+    depends_on:
+      - users-service
+      - content-service
+      - quiz-service
+
+  # 2. Users Service (Development with Hot Reload)
+  users-service:
+    container_name: wo-users-service-dev
+    build:
+      context: .
+      dockerfile: ./services/users/Dockerfile.dev
+    restart: unless-stopped
+    env_file: [./.env.local]
+    environment:
+      - DB_NAME=users_db
+      - CGO_ENABLED=0
+    ports:
+      - "8081:8080" # Expose for direct access during development
+    volumes:
+      - ".:/app" # Mount entire project for hot reload
+      - "/app/tmp" # Exclude tmp directory to avoid conflicts
+      - "/app/vendor" # Exclude vendor directory for better performance
+      - "go-mod-cache:/go/pkg/mod" # Cache Go modules
+    depends_on: [mongodb]
+    develop:
+      watch:
+        - action: sync
+          path: ./services/users
+          target: /app/services/users
+        - action: sync
+          path: ./lib
+          target: /app/lib
+        - action: sync
+          path: ./gen
+          target: /app/gen
+        - action: rebuild
+          path: ./go.work
+
+  # 3. Content Service (Development with Hot Reload)
+  content-service:
+    container_name: wo-content-service-dev
+    build:
+      context: .
+      dockerfile: ./services/content/Dockerfile.dev
+    restart: unless-stopped
+    env_file: [./.env.local]
+    environment:
+      - DB_NAME=content_db
+      - CGO_ENABLED=0
+    ports:
+      - "8082:8080" # Expose for direct access during development
+    volumes:
+      - ".:/app" # Mount entire project for hot reload
+      - "/app/tmp" # Exclude tmp directory to avoid conflicts
+      - "/app/vendor" # Exclude vendor directory for better performance
+      - "go-mod-cache:/go/pkg/mod" # Cache Go modules
+    depends_on: [mongodb]
+    develop:
+      watch:
+        - action: sync
+          path: ./services/content
+          target: /app/services/content
+        - action: sync
+          path: ./lib
+          target: /app/lib
+        - action: sync
+          path: ./gen
+          target: /app/gen
+        - action: rebuild
+          path: ./go.work
+
+  # 4. Quiz Service (Development with Hot Reload)
+  quiz-service:
+    container_name: wo-quiz-service-dev
+    build:
+      context: .
+      dockerfile: ./services/quiz/Dockerfile.dev
+    restart: unless-stopped
+    env_file: [./.env.local]
+    environment:
+      - DB_NAME=quiz_db
+      - CGO_ENABLED=0
+    ports:
+      - "8083:8080" # Expose for direct access during development
+    volumes:
+      - ".:/app" # Mount entire project for hot reload
+      - "/app/tmp" # Exclude tmp directory to avoid conflicts
+      - "/app/vendor" # Exclude vendor directory for better performance
+      - "go-mod-cache:/go/pkg/mod" # Cache Go modules
+    depends_on: [mongodb]
+    develop:
+      watch:
+        - action: sync
+          path: ./services/quiz
+          target: /app/services/quiz
+        - action: sync
+          path: ./lib
+          target: /app/lib
+        - action: sync
+          path: ./gen
+          target: /app/gen
+        - action: rebuild
+          path: ./go.work
+
+  # 5. MongoDB Database
   mongodb:
     image: mongo:latest
     container_name: wo-mongodb-dev
@@ -12,3 +125,4 @@ services:
 
 volumes:
   mongo_data_dev:
+  go-mod-cache: # Shared Go module cache for faster builds
