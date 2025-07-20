@@ -16,6 +16,7 @@ import (
 	"wise-owl/lib/auth"
 	"wise-owl/lib/config"
 	"wise-owl/lib/database"
+	"wise-owl/lib/health"
 	"wise-owl/services/users/internal/handlers"
 
 	"github.com/gin-gonic/gin"
@@ -42,15 +43,39 @@ func main() {
 	userCollection := dbConn.GetCollection(dbName, "users")
 	log.Println("Database connection established.")
 
-	// 3. Initialize HTTP Router and Shared Middleware
+	// 3. Initialize Health Checker with enhanced configuration
+	healthConfig := health.LoadHealthConfigFromEnv()
+	healthChecker := health.NewHealthChecker("Users Service", "1.0.0", "development")
+	healthChecker.SetMongoClient(dbConn.Client, dbName)
+	healthConfig.ApplyToHealthChecker(healthChecker)
+
+	// Setup common dependencies (Users service has no inter-service dependencies)
+	health.SetupCommonDependencies(healthChecker, "Users Service", healthConfig)
+
+	// 4. Initialize HTTP Router and Shared Middleware
 	router := gin.Default()
+
+	// Use custom logging middleware to reduce health check noise
+	router.Use(health.LoggingMiddleware())
+
 	authMiddleware := auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
 
 	// Dependency Injection: Pass the collection handle to the handlers.
 	userHandler := handlers.NewUserHandler(userCollection)
 
-	// 4. Define API Routes
-	router.GET("/health", func(c *gin.Context) {
+	// 5. Define API Routes
+	// Enhanced health check endpoints (support both GET and HEAD for Docker health checks)
+	router.GET("/health", healthChecker.CreateEnhancedHandler())
+	router.HEAD("/health", healthChecker.CreateEnhancedHandler())
+	router.GET("/health/ready", healthChecker.CreateDetailedReadinessHandler())
+	router.HEAD("/health/ready", healthChecker.CreateDetailedReadinessHandler())
+	router.GET("/health/live", healthChecker.CreateLivenessHandler())
+	router.HEAD("/health/live", healthChecker.CreateLivenessHandler())
+	router.GET("/health/metrics", healthChecker.CreateMetricsHandler())
+	router.HEAD("/health/metrics", healthChecker.CreateMetricsHandler())
+
+	// Legacy health endpoint for backward compatibility
+	router.GET("/health-legacy", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "Users Service"})
 	})
 
@@ -67,7 +92,7 @@ func main() {
 		}
 	}
 
-	// 5. Start HTTP Server with Graceful Shutdown
+	// 6. Start HTTP Server with Graceful Shutdown
 	srv := &http.Server{
 		Addr:    ":" + cfg.ServerPort,
 		Handler: router,

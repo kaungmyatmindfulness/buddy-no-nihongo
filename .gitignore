@@ -3,6 +3,36 @@
 /services/users/main
 /services/content/main
 
+# New service-specific build outputs (with -o flag naming)
+/services/users/users-service
+/services/content/content-service
+/services/quiz/quiz-service
+
+# Generic Go build patterns
+*-service
+main
+cmd
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test and coverage files
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Go build cache and module cache (for local development)
+.cache/
+go.sum.backup
+
+# Air hot reload temporary files (development)
+tmp/
+.air/
+**/tmp/
+
 # IDE and OS files
 .idea/
 .vscode/
@@ -16,6 +46,7 @@
 .env
 .env.*
 !.env.example
+!.env.health.example
 
 # Docker
 # Ignore local docker-compose override files

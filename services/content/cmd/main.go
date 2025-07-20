@@ -14,6 +14,7 @@ import (
 
 	"wise-owl/lib/config"
 	"wise-owl/lib/database"
+	"wise-owl/lib/health"
 	content_grpc "wise-owl/services/content/internal/grpc"
 	"wise-owl/services/content/internal/handlers"
 	"wise-owl/services/content/internal/seeder"
@@ -38,6 +39,15 @@ func main() {
 	dbHandle := dbConn.Client.Database(dbName)
 	seeder.SeedData(dbName, dbConn.Client)
 
+	// Initialize Health Checker with enhanced configuration
+	healthConfig := health.LoadHealthConfigFromEnv()
+	healthChecker := health.NewHealthChecker("Content Service", "1.0.0", "development")
+	healthChecker.SetMongoClient(dbConn.Client, dbName)
+	healthConfig.ApplyToHealthChecker(healthChecker)
+
+	// Setup common dependencies (Content service has no inter-service dependencies)
+	health.SetupCommonDependencies(healthChecker, "Content Service", healthConfig)
+
 	// --- Start gRPC Server (for internal communication) ---
 	go func() {
 		lis, err := net.Listen("tcp", ":50052") // Use a unique internal port
@@ -54,8 +64,24 @@ func main() {
 
 	// --- Initialize and Start Gin HTTP Server ---
 	router := gin.Default()
+
+	// Use custom logging middleware to reduce health check noise
+	router.Use(health.LoggingMiddleware())
+
 	contentHandler := handlers.NewContentHandler(dbHandle)
-	router.GET("/health", func(c *gin.Context) {
+
+	// Enhanced health check endpoints (support both GET and HEAD for Docker health checks)
+	router.GET("/health", healthChecker.CreateEnhancedHandler())
+	router.HEAD("/health", healthChecker.CreateEnhancedHandler())
+	router.GET("/health/ready", healthChecker.CreateDetailedReadinessHandler())
+	router.HEAD("/health/ready", healthChecker.CreateDetailedReadinessHandler())
+	router.GET("/health/live", healthChecker.CreateLivenessHandler())
+	router.HEAD("/health/live", healthChecker.CreateLivenessHandler())
+	router.GET("/health/metrics", healthChecker.CreateMetricsHandler())
+	router.HEAD("/health/metrics", healthChecker.CreateMetricsHandler())
+
+	// Legacy health endpoint for backward compatibility
+	router.GET("/health-legacy", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "Content Service"})
 	})
 	apiV1 := router.Group("/api/v1")

@@ -1,168 +1,375 @@
-# Wise Owl Golang Microservices
+# Wise Owl Japanese Learning Platform - Developer Guide
 
-This document provides instructions for AI coding agents to effectively contribute to the Wise Owl Golang microservices project.
+This guide helps AI coding agents understand and contribute effectively to the Wise Owl Golang microservices project - a backend system for a Japanese language learning mobile app based on the "Minna no Nihongo" textbook series.
 
-## Architecture Overview
+## 🎯 The Big Picture: What This System Does
 
-This is a **Japanese language learning backend** built as a monorepo microservices system using Go Workspaces. The architecture follows a domain-driven design with clear service boundaries:
+**Core Purpose:** Enable progressive Japanese vocabulary and grammar learning with intelligent quiz generation and progress tracking.
 
-- **API Gateway (Nginx):** Single entry point routing to backend services via `nginx/default.conf`
-- **Microservices:** Three domain-specific services in `services/`:
-  - `users`: Authentication with Auth0 JWT validation
-  - `content`: Educational content (vocabulary, lessons) with JSON seeding, runs dual HTTP/gRPC servers
-  - `quiz`: Quiz generation and management
-- **Shared Libraries:** Common code in `lib/` (database, config, auth middleware)
-- **gRPC Communication:** Inter-service calls using protobuf definitions in `proto/`
+**Key Learning Flow:**
 
-## Go Workspace Pattern
+1. Students learn vocabulary from textbook chapters
+2. Grammar unlocks only after vocabulary mastery
+3. Multi-modal quizzes test retention (flashcards, meaning, word recognition)
+4. Real-time progress tracking prevents data loss
+5. Filtered review sessions target weak areas
 
-This project uses **Go Workspaces** (`go.work`) for monorepo management. All services and libraries are defined as separate modules but work together seamlessly:
+## 🏗️ Architecture: Monorepo Microservices with Go Workspaces
 
-```bash
-# The workspace includes: gen/, lib/, and all services/
-go work use ./gen ./lib ./services/content ./services/users ./services/quiz
+### System Components Diagram
+
+```
+Mobile App → Nginx Gateway → [Users|Content|Quiz] Services → MongoDB Databases
+                ↓              ↓         ↓        ↓
+            Port 80        Port 8081  8082   8083
+                              ↓         ↓        ↓
+                           users_db content_db quiz_db
+                                      ↑        ↑
+                                      └─gRPC──┘
 ```
 
-Each service has its own `go.mod` but shares dependencies through the workspace.
+### Service Boundaries & Responsibilities
 
-## Development Workflow
+**🔐 Users Service** (`services/users/`)
 
-### Required: Use dev.sh Script
+- **Domain:** User identity, authentication, progress tracking
+- **Dependencies:** None (foundational service)
+- **Key Features:** Auth0 JWT validation, chapter completion status
+- **Database:** `users_db` - user profiles, learning progress
 
-**ALWAYS use the `./dev.sh` script** for development operations. Never run Docker commands directly:
+**📚 Content Service** (`services/content/`)
+
+- **Domain:** Static educational content from Minna no Nihongo
+- **Dependencies:** None (foundational service)
+- **Key Features:** Dual HTTP/gRPC servers, auto-seeding from JSON
+- **Database:** `content_db` - vocabulary, lessons, structured by chapters
+- **Special:** Runs both REST API (mobile) and gRPC (internal) simultaneously
+
+**🧠 Quiz Service** (`services/quiz/`)
+
+- **Domain:** Dynamic quiz generation and answer validation
+- **Dependencies:** Content Service (via gRPC)
+- **Key Features:** Multi-modal questions, real-time scoring
+- **Database:** `quiz_db` - quiz sessions, user responses, performance analytics
+
+### Data Flow: Why Services Communicate This Way
+
+```
+1. Mobile App requests quiz → Quiz Service
+2. Quiz Service fetches vocabulary → Content Service (gRPC)
+3. Quiz Service generates questions → Returns to mobile
+4. User answers → Quiz Service saves immediately
+5. Progress updates → Users Service (future enhancement)
+```
+
+**Why gRPC for Internal Communication:**
+
+- Type-safe contracts with protobuf
+- High-performance for batch vocabulary fetching
+- Streaming support for future real-time features
+
+## 🛠️ Development Workflows: The `./dev.sh` Pattern
+
+### Critical: Always Use dev.sh Script
+
+**Why this pattern exists:** Standardizes complex Docker Compose operations, environment management, and hot reloading across the team.
 
 ```bash
-# Setup environment (first time only)
+# First-time setup (creates .env.local)
 ./dev.sh setup
 
-# Start full development stack with hot reload
-./dev.sh start
+# Development mode with hot reload (MOST COMMON)
+./dev.sh start    # Starts all services with Air hot reloading
+./dev.sh logs     # View aggregated logs
+./dev.sh stop     # Clean shutdown
 
-# View logs (all services or specific service)
-./dev.sh logs
-./dev.sh logs content-service
-
-# Stop/restart services
-./dev.sh stop
-./dev.sh restart
-
-# Clean rebuild after Dockerfile changes
-./dev.sh build
+# Debugging specific services
+./dev.sh logs content-service  # Isolated service logs
+./dev.sh restart              # Restart all without rebuilding
 ```
 
-### Alternative Development Options
+### Three Development Modes
+
+**Mode A: Full Docker Development (Recommended)**
 
 ```bash
-# 1. MongoDB only (run services locally with go run)
-docker-compose -f docker-compose.dev.yml up -d mongodb
+./dev.sh start  # Everything in containers with hot reload
+```
+
+- **Use when:** Normal development, testing integrations
+- **Benefits:** Consistent environment, full service mesh, realistic networking
+
+**Mode B: Hybrid Development**
+
+```bash
+docker-compose -f docker-compose.dev.yml up mongodb -d
 cd services/content && go run cmd/main.go
-
-# 2. Full containerized stack with hot reload (recommended)
-./dev.sh start
 ```
 
-### gRPC Code Generation
+- **Use when:** Debugging specific service with IDE breakpoints
+- **Benefits:** Local debugging while maintaining service dependencies
 
-When modifying `.proto` files, regenerate Go code:
+**Mode C: Production Simulation**
 
 ```bash
-# From project root - regenerates files in gen/proto/
-protoc --go_out=gen --go-grpc_out=gen proto/content/content.proto
+docker-compose up --build -d
 ```
 
-### Hot Reload System
+- **Use when:** Testing deployment, final integration testing
+- **Benefits:** Production-like container builds and networking
 
-Development uses **Air** for hot reloading with service-specific `.air.toml` configs:
+### Hot Reload with Air
 
-- Watches `services/{service}`, `lib/`, and `gen/` directories
-- Auto-rebuilds on `.go`, `.json` file changes
-- Excludes `_test.go` files and `vendor/` directory
-- Build artifacts go to `tmp/` directory
+**Files watched:** `services/{service}`, `lib/`, `gen/`
+**Triggers:** `.go`, `.json` file changes
+**Build pattern:** `go build -o ./tmp/main ./services/{service}/cmd`
 
-## Key Patterns & Conventions
+Each service has `.air.toml` configured to:
 
-### Service Structure
+- Watch shared libraries for cross-service changes
+- Exclude test files and vendor directory
+- Use consistent build output naming
 
-Each service follows this exact pattern:
-
-```
-services/{service}/
-├── cmd/main.go              # Entry point, content service runs dual HTTP+gRPC
-├── internal/
-│   ├── handlers/            # HTTP REST handlers for Gin
-│   ├── grpc/server.go       # gRPC service implementation (content only)
-│   └── models/              # MongoDB document structs with bson tags
-├── seed/                    # JSON seed data (content service only)
-├── .air.toml                # Hot reload configuration
-└── Dockerfile.dev           # Development container with Air
-```
-
-### Environment Configuration
-
-**Critical:** Each service requires specific environment variables:
-
-- `DB_NAME`: Determines MongoDB database (e.g., `users_db`, `content_db`)
-- `SERVER_PORT`: Service port (default 8080)
-- `MONGODB_URI`: Connection string to MongoDB
-- `AUTH0_DOMAIN` & `AUTH0_AUDIENCE`: For JWT validation
-
-Use `.env.local` file (created by `./dev.sh setup`) - **never commit this file**.
-
-### Database Per Service
-
-- Each service gets its own MongoDB database via `DB_NAME` env var
-- Services use shared `lib/database` singleton connection
-- Models use MongoDB driver with BSON tags: `bson:"field_name,omitempty"`
-
-### Configuration Pattern
-
-All services use `lib/config` with Viper for environment variables:
+## 🔧 Go Workspace: Monorepo Magic
 
 ```go
-// Services load config identically
-cfg, err := config.LoadConfig()
-// DB_NAME environment variable determines which database to use
+// go.work
+go 1.24.4
+use (
+    ./gen      // Generated protobuf code
+    ./lib      // Shared libraries
+    ./services/content
+    ./services/quiz
+    ./services/users
+)
 ```
 
-### Auth0 Integration
+**Why this pattern:**
 
-The `lib/auth/middleware.go` provides JWT validation middleware for Gin routes:
+- Single `go mod tidy` updates all services
+- Shared libraries automatically sync across services
+- Local development feels like single project
+- Avoids version conflicts between services
+
+**Key Commands:**
+
+```bash
+go work sync    # Sync dependencies across all modules
+go work vendor  # Vendor for containerized builds
+```
+
+## 🏥 Enterprise Health Check System
+
+### Circuit Breaker Pattern Implementation
+
+**Problem Solved:** Prevents cascading failures when services are down
+**Pattern:** Quiz Service → Content Service dependency with intelligent failure handling
 
 ```go
-// Apply to protected routes
+// Each service implements comprehensive health checks
+healthChecker := health.NewHealthChecker("Quiz Service", "1.0.0", "development")
+healthChecker.SetMongoClient(dbConn.Client, dbName)
+
+// Circuit breaker automatically handles dependency failures
+hc.AddDependencyWithConfig("content-service", &DependencyConfig{
+    Name:         "content-service",
+    URL:          "http://content-service:8080",
+    Critical:     true,
+    CheckType:    "http",
+})
+```
+
+### Health Endpoint Strategy
+
+**Four specialized endpoints per service:**
+
+- `/health` - Overall status with dependency checking
+- `/health/ready` - Kubernetes readiness probe
+- `/health/live` - Kubernetes liveness probe
+- `/health/metrics` - Circuit breaker stats, response times
+
+**Testing health checks:**
+
+```bash
+./test-health.sh  # Comprehensive validation script
+curl localhost:8083/health | jq  # Manual testing
+```
+
+## 🔗 Critical Integration Patterns
+
+### gRPC Service-to-Service Communication
+
+**Content Service gRPC Definition** (`proto/content/content.proto`):
+
+```protobuf
+service ContentService {
+  rpc GetVocabularyBatch(GetVocabularyBatchRequest) returns (GetVocabularyBatchResponse);
+}
+```
+
+**Quiz Service Integration** (`services/quiz/cmd/main.go`):
+
+```go
+// Connect to Content Service gRPC
+conn, err := grpc.Dial("content-service:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+contentClient := pb_content.NewContentServiceClient(conn)
+```
+
+**Why this specific pattern:**
+
+- Batch fetching prevents N+1 query problems
+- Type safety with protobuf ensures API contracts
+- gRPC health checking integrates with circuit breakers
+
+### Database Per Service Pattern
+
+**Logical separation with shared MongoDB:**
+
+```yaml
+# Each service gets its own database
+users-service: DB_NAME=users_db
+content-service: DB_NAME=content_db
+quiz-service: DB_NAME=quiz_db
+```
+
+**Shared connection library** (`lib/database/database.go`):
+
+- Singleton pattern prevents connection proliferation
+- Environment-based database selection
+- Consistent error handling and connection pooling
+
+### Auth0 JWT Integration
+
+**Middleware pattern** (`lib/auth/middleware.go`):
+
+```go
+// Protect quiz routes requiring authentication
 router.Use(auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience))
 ```
 
-### Data Seeding
+**Environment configuration:**
 
-The content service auto-seeds from `seed/vocabulary.json` on startup - implement similar seeding patterns for other services that need initial data.
-
-### Nginx Routing
-
-Services are exposed through nginx upstreams in `nginx/default.conf`. Add new services:
-
-```nginx
-upstream new_service {
-    server new-service:8080;
-}
-
-location /api/v1/new/ {
-    proxy_pass http://new_service;
-    # Standard proxy headers are pre-configured
-}
+```bash
+AUTH0_DOMAIN=your-domain.auth0.com
+AUTH0_AUDIENCE=your-api-identifier
 ```
 
-### Dual Server Pattern (Content Service)
+## 📡 Port Allocation & Networking
 
-Content service runs **both HTTP and gRPC servers** concurrently:
+**Critical Docker networking requirements:**
 
-- HTTP (port 8080): REST API for mobile clients
-- gRPC (port 50052): Internal service communication
-- Shared database connection and models between both servers
+```yaml
+# Content Service: MUST expose both ports
+ports:
+  - "8082:8080" # HTTP for mobile clients
+  - "50052:50052" # gRPC for inter-service calls
 
-## Critical Integration Points
+# Other services: HTTP only
+users-service: "8081:8080"
+quiz-service: "8083:8080"
+```
 
-- **Content→Quiz:** Quiz service calls content service via gRPC to fetch vocabulary batches
-- **Quiz→Users:** Quiz service tracks user progress and performance
-- **All Services→MongoDB:** Shared MongoDB instance, separate databases per service
-- **Mobile Client→Nginx:** All API calls go through nginx gateway on port 80
+**Why dual ports for Content Service:**
+
+- HTTP (8080): REST API for mobile app consumption
+- gRPC (50052): High-performance internal API for Quiz Service
+
+## 🚨 Common Debugging Scenarios
+
+### Circuit Breaker Issues
+
+```bash
+# Check circuit breaker state
+curl localhost:8083/health | jq '.checks."content-service".details'
+
+# Common states:
+# "closed" = healthy, requests flowing
+# "open" = failing, blocking requests
+# "half-open" = testing recovery
+```
+
+### gRPC Connectivity Problems
+
+```bash
+# Verify port exposure in docker-compose.dev.yml
+grep -A 10 "content-service:" docker-compose.dev.yml
+
+# Test gRPC port accessibility
+docker exec quiz-service nc -zv content-service 50052
+```
+
+### Hot Reload Not Working
+
+```bash
+# Check Air configuration includes all dependencies
+grep -A 5 "include_dir" services/quiz/.air.toml
+# Should include: ["services/quiz", "lib", "gen"]
+```
+
+### Environment Variable Issues
+
+```bash
+# Verify .env.local exists and is loaded
+./dev.sh logs content-service | grep "Configuration loaded"
+# Should show: "Using database: content_db"
+```
+
+## 🔄 protobuf Code Generation
+
+**When to regenerate:**
+
+- After modifying `.proto` files
+- Adding new gRPC methods
+- Changing message structures
+
+```bash
+# From project root
+protoc --go_out=gen --go-grpc_out=gen proto/content/content.proto
+
+# Verify generation
+ls gen/proto/content/
+# Should see: content.pb.go, content_grpc.pb.go
+```
+
+## 📁 Project Structure Logic
+
+```
+wise-owl-golang/
+├── .env.local              # Never commit - contains secrets
+├── go.work                 # Workspace definition
+├── proto/                  # Source of truth for gRPC contracts
+├── gen/                    # Generated code (committed for consistency)
+├── lib/                    # Shared libraries used by all services
+│   ├── auth/               # JWT middleware
+│   ├── config/             # Viper-based env loading
+│   ├── database/           # MongoDB singleton
+│   └── health/             # Circuit breaker health checks
+├── services/               # Domain-driven service boundaries
+│   ├── users/              # User management & progress
+│   ├── content/            # Static curriculum content
+│   └── quiz/               # Dynamic quiz generation
+├── nginx/                  # Single entry point configuration
+└── test-health.sh          # Health check validation tool
+```
+
+## 🎯 Production Readiness Features
+
+**Kubernetes Integration:**
+
+- Health check endpoints match Kubernetes probe expectations
+- Container health checks use `wget --spider` for reliability
+- Graceful shutdown handling in all services
+
+**Observability:**
+
+- Structured logging with service identification
+- Circuit breaker metrics for monitoring dashboards
+- Request tracing through service boundaries
+
+**Security:**
+
+- JWT validation on protected endpoints
+- Environment-based secrets management
+- No hardcoded credentials in codebase
+
+This architecture enables rapid development while maintaining production-grade reliability and observability.

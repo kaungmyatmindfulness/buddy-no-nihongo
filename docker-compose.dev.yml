@@ -1,16 +1,21 @@
 services:
-  # 1. Nginx: The API Gateway
-  nginx:
-    image: nginx:stable-alpine
-    container_name: wo-nginx-dev
+  # 1. MongoDB Database (moved first as it's the foundation dependency)
+  mongodb:
+    image: mongo:latest
+    container_name: wo-mongodb-dev
     restart: unless-stopped
-    ports: ["80:80"]
+    env_file:
+      - ./.env.local
+    ports:
+      - "27017:27017"
     volumes:
-      - "./nginx:/etc/nginx/conf.d:ro"
-    depends_on:
-      - users-service
-      - content-service
-      - quiz-service
+      - mongo_data_dev:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # 2. Users Service (Development with Hot Reload)
   users-service:
@@ -30,7 +35,23 @@ services:
       - "/app/tmp" # Exclude tmp directory to avoid conflicts
       - "/app/vendor" # Exclude vendor directory for better performance
       - "go-mod-cache:/go/pkg/mod" # Cache Go modules
-    depends_on: [mongodb]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health/ready",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     develop:
       watch:
         - action: sync
@@ -57,13 +78,30 @@ services:
       - DB_NAME=content_db
       - CGO_ENABLED=0
     ports:
-      - "8082:8080" # Expose for direct access during development
+      - "8082:8080" # HTTP API for direct access during development
+      - "50052:50052" # gRPC server for internal service communication
     volumes:
       - ".:/app" # Mount entire project for hot reload
       - "/app/tmp" # Exclude tmp directory to avoid conflicts
       - "/app/vendor" # Exclude vendor directory for better performance
       - "go-mod-cache:/go/pkg/mod" # Cache Go modules
-    depends_on: [mongodb]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health/ready",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     develop:
       watch:
         - action: sync
@@ -96,7 +134,25 @@ services:
       - "/app/tmp" # Exclude tmp directory to avoid conflicts
       - "/app/vendor" # Exclude vendor directory for better performance
       - "go-mod-cache:/go/pkg/mod" # Cache Go modules
-    depends_on: [mongodb]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      content-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health/ready",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Longer start period since it depends on content service
     develop:
       watch:
         - action: sync
@@ -111,17 +167,35 @@ services:
         - action: rebuild
           path: ./go.work
 
-  # 5. MongoDB Database
-  mongodb:
-    image: mongo:latest
-    container_name: wo-mongodb-dev
+  # 5. Nginx: The API Gateway (depends on all backend services)
+  nginx:
+    image: nginx:stable-alpine
+    container_name: wo-nginx-dev
     restart: unless-stopped
-    env_file:
-      - ./.env.local
-    ports:
-      - "27017:27017"
+    ports: ["80:80"]
     volumes:
-      - mongo_data_dev:/data/db
+      - "./nginx:/etc/nginx/conf.d:ro"
+    depends_on:
+      users-service:
+        condition: service_healthy
+      content-service:
+        condition: service_healthy
+      quiz-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health-check",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
   mongo_data_dev:
