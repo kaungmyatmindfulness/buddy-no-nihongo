@@ -43,20 +43,12 @@ func main() {
 	userCollection := dbConn.GetCollection(dbName, "users")
 	log.Println("Database connection established.")
 
-	// 3. Initialize Health Checker with enhanced configuration
-	healthConfig := health.LoadHealthConfigFromEnv()
-	healthChecker := health.NewHealthChecker("Users Service", "1.0.0", "development")
+	// 3. Initialize simple health checker
+	healthChecker := health.NewSimpleHealthChecker("Users Service")
 	healthChecker.SetMongoClient(dbConn.Client, dbName)
-	healthConfig.ApplyToHealthChecker(healthChecker)
-
-	// Setup common dependencies (Users service has no inter-service dependencies)
-	health.SetupCommonDependencies(healthChecker, "Users Service", healthConfig)
 
 	// 4. Initialize HTTP Router and Shared Middleware
 	router := gin.Default()
-
-	// Use custom logging middleware to reduce health check noise
-	router.Use(health.LoggingMiddleware())
 
 	authMiddleware := auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
 
@@ -64,20 +56,11 @@ func main() {
 	userHandler := handlers.NewUserHandler(userCollection)
 
 	// 5. Define API Routes
-	// Enhanced health check endpoints (support both GET and HEAD for Docker health checks)
-	router.GET("/health", healthChecker.CreateEnhancedHandler())
-	router.HEAD("/health", healthChecker.CreateEnhancedHandler())
-	router.GET("/health/ready", healthChecker.CreateDetailedReadinessHandler())
-	router.HEAD("/health/ready", healthChecker.CreateDetailedReadinessHandler())
-	router.GET("/health/live", healthChecker.CreateLivenessHandler())
-	router.HEAD("/health/live", healthChecker.CreateLivenessHandler())
-	router.GET("/health/metrics", healthChecker.CreateMetricsHandler())
-	router.HEAD("/health/metrics", healthChecker.CreateMetricsHandler())
-
-	// Legacy health endpoint for backward compatibility
-	router.GET("/health-legacy", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "Users Service"})
-	})
+	// Simple health endpoints
+	router.GET("/health", healthChecker.Handler())
+	router.HEAD("/health", healthChecker.Handler())
+	router.GET("/health/ready", healthChecker.ReadyHandler())
+	router.HEAD("/health/ready", healthChecker.ReadyHandler())
 
 	apiV1 := router.Group("/api/v1")
 	{

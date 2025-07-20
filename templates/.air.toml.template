@@ -1,13 +1,16 @@
+# Simplified Air Configuration Template
+# Copy this to each service directory and update the service name
+
 root = "."
 tmp_dir = "tmp"
 
 [build]
   bin = "./tmp/main"
-  cmd = "go build -o ./tmp/main ./services/users/cmd"
+  cmd = "go build -o ./tmp/main ./services/SERVICE_NAME/cmd"  # Replace SERVICE_NAME
   delay = 1000
   exclude_dir = ["tmp", "vendor", ".git"]
   exclude_regex = ["_test.go"]
-  include_dir = ["services/users", "lib", "gen"]
+  include_dir = ["services/SERVICE_NAME", "lib", "gen"]      # Replace SERVICE_NAME
   include_ext = ["go", "json"]
   kill_delay = "2s"
   poll = true
@@ -25,7 +28,3 @@ tmp_dir = "tmp"
 
 [misc]
   clean_on_exit = false
-
-[screen]
-  clear_on_rebuild = false
-  keep_scroll = true

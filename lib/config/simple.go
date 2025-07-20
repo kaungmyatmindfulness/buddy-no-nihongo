@@ -1,3 +1,6 @@
+// FILE: lib/config/simple.go
+// Simplified configuration management
+
 package config
 
 import (

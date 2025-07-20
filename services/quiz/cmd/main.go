@@ -40,14 +40,11 @@ func main() {
 	dbHandle := dbConn.Client.Database(dbName)
 	log.Println("Database connection established.")
 
-	// Initialize Health Checker with enhanced configuration
-	healthConfig := health.LoadHealthConfigFromEnv()
-	healthChecker := health.NewHealthChecker("Quiz Service", "1.0.0", "development")
+	// Initialize simple health checker
+	healthChecker := health.NewSimpleHealthChecker("Quiz Service")
 	healthChecker.SetMongoClient(dbConn.Client, dbName)
-	healthConfig.ApplyToHealthChecker(healthChecker)
 
 	// --- gRPC Client Setup for Content Service ---
-	// Address is "service-name:port" from docker-compose
 	contentServiceURL := "content-service:50052"
 	conn, err := grpc.Dial(contentServiceURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -57,41 +54,16 @@ func main() {
 	contentClient := pb_content.NewContentServiceClient(conn)
 	log.Printf("Successfully connected to content-service gRPC at %s", contentServiceURL)
 
-	// Setup common dependencies and add custom ones
-	health.SetupCommonDependencies(healthChecker, "Quiz Service", healthConfig)
-
-	// Add additional custom dependencies if needed
-	// For example, add gRPC health check (when available)
-	// healthChecker.AddDependencyWithConfig("content-service-grpc", &health.DependencyConfig{
-	//     Name: "content-service-grpc",
-	//     URL: "content-service:50052",
-	//     Timeout: 5*time.Second,
-	//     Critical: true,
-	//     CheckType: "tcp",
-	// })
-
 	router := gin.Default()
-
-	// Use custom logging middleware to reduce health check noise
-	router.Use(health.LoggingMiddleware())
 
 	authMiddleware := auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
 	quizHandler := handlers.NewQuizHandler(dbHandle, contentClient)
 
-	// Enhanced health check endpoints (support both GET and HEAD for Docker health checks)
-	router.GET("/health", healthChecker.CreateEnhancedHandler())
-	router.HEAD("/health", healthChecker.CreateEnhancedHandler())
-	router.GET("/health/ready", healthChecker.CreateDetailedReadinessHandler())
-	router.HEAD("/health/ready", healthChecker.CreateDetailedReadinessHandler())
-	router.GET("/health/live", healthChecker.CreateLivenessHandler())
-	router.HEAD("/health/live", healthChecker.CreateLivenessHandler())
-	router.GET("/health/metrics", healthChecker.CreateMetricsHandler())
-	router.HEAD("/health/metrics", healthChecker.CreateMetricsHandler())
-
-	// Legacy health endpoint for backward compatibility
-	router.GET("/health-legacy", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "Quiz Service"})
-	})
+	// Simple health endpoints
+	router.GET("/health", healthChecker.Handler())
+	router.HEAD("/health", healthChecker.Handler())
+	router.GET("/health/ready", healthChecker.ReadyHandler())
+	router.HEAD("/health/ready", healthChecker.ReadyHandler())
 
 	apiV1 := router.Group("/api/v1")
 	{
