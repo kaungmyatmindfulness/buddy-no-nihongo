@@ -172,7 +172,7 @@ services:
     image: nginx:stable-alpine
     container_name: wo-nginx-dev
     restart: unless-stopped
-    ports: ["80:80"]
+    ports: ["8080:80"]
     volumes:
       - "./nginx:/etc/nginx/conf.d:ro"
     depends_on:

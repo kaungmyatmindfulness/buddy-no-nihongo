@@ -60,7 +60,7 @@ case "$1" in
         print_info "Starting all services in development mode..."
         docker-compose -f docker-compose.dev.yml up -d
         print_info "Services started! Access points:"
-        echo "  - Nginx Gateway: http://localhost"
+        echo "  - Nginx Gateway: http://localhost:8080"
         echo "  - Users Service: http://localhost:8081"
         echo "  - Content Service: http://localhost:8082"
         echo "  - Quiz Service: http://localhost:8083"
