@@ -17,7 +17,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Service configuration (using arrays instead of associative arrays for compatibility)
-SERVICES=("nginx:80" "users-service:8081" "content-service:8082" "quiz-service:8083")
+SERVICES=("nginx:8080" "users-service:8081" "content-service:8082" "quiz-service:8083")
 
 # Failure tracking files (using temp files instead of associative arrays)
 TEMP_DIR="/tmp/wise-owl-monitor"

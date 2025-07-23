@@ -80,9 +80,9 @@ check_all_health() {
     local all_healthy=true
     
     # Define services and their health check ports
-    # Note: Services expose internal port 8080, but nginx is on port 80
+    # Note: Services expose internal port 8080, nginx exposed on port 8080
     local services=(
-        "nginx:80"
+        "nginx:8080"
         "users-service:8081"
         "content-service:8082" 
         "quiz-service:8083"
@@ -100,10 +100,10 @@ check_all_health() {
         print_info "All services are healthy! 🎉"
         echo ""
         echo "🌐 Access points:"
-        echo "  - API Gateway: http://localhost"
-        echo "  - Users API: http://localhost/api/v1/users/"
-        echo "  - Content API: http://localhost/api/v1/content/"
-        echo "  - Quiz API: http://localhost/api/v1/quiz/"
+        echo "  - API Gateway: http://localhost:8080"
+        echo "  - Users API: http://localhost:8080/api/v1/users/"
+        echo "  - Content API: http://localhost:8080/api/v1/content/"
+        echo "  - Quiz API: http://localhost:8080/api/v1/quiz/"
     else
         print_warning "Some services failed health checks. Check logs for details."
         print_info "Run '$0 logs [service]' to debug issues"

@@ -107,7 +107,7 @@ cp .env.docker.example .env.docker
 
 ### Service Configuration
 
-- **Nginx Gateway**: Port 80 (public access)
+- **Nginx Gateway**: Port 8080 (public access)
 - **Users Service**: Port 8081 (internal health checks)
 - **Content Service**: Port 8082 (internal health checks)
 - **Quiz Service**: Port 8083 (internal health checks)
@@ -267,7 +267,7 @@ docker system df
 
 ```bash
 # Manual health check
-curl http://localhost/health-check
+curl http://localhost:8080/health-check
 
 # Check individual service health
 curl http://localhost:8081/health/ready  # users
