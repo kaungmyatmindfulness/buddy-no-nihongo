@@ -7,7 +7,6 @@ set -e
 
 # Configuration
 DEFAULT_USER="deploy"
-GO_VERSION="1.21.5"
 PROMETHEUS_VERSION="v2.45.0"
 GRAFANA_VERSION="10.0.0"
 
@@ -43,10 +42,7 @@ fi
 
 # ASCII Art
 echo -e "${BLUE}"
-if command -v figlet &> /dev/null; then
-    figlet -f small "VPS Setup"
-else
-    cat << "EOF"
+cat << "EOF"
 __     ______  ____   ____       _               
 \ \   / /  _ \/ ___| / ___|  ___| |_ _   _ _ __  
  \ \ / /| |_) \___ \ \___ \ / _ \ __| | | | '_ \ 
@@ -54,7 +50,6 @@ __     ______  ____   ____       _
    \_/  |_|   |____/ |____/ \___|\__|\__,_| .__/ 
                                            |_|    
 EOF
-fi
 echo -e "${NC}"
 
 # ========================================
@@ -74,9 +69,6 @@ apt install -y \
     wget \
     vim \
     git \
-    htop \
-    iotop \
-    sysstat \
     ufw \
     fail2ban \
     ca-certificates \
@@ -85,10 +77,7 @@ apt install -y \
     software-properties-common \
     apt-transport-https \
     jq \
-    net-tools \
-    dnsutils \
-    logrotate \
-    neovim
+    logrotate
 
 # ========================================
 # PHASE 2: User Management
@@ -592,6 +581,23 @@ services:
     expose:
       - 8080
 
+  # System monitoring tools container
+  monitoring-tools:
+    image: nicolaka/netshoot:latest
+    container_name: monitoring-tools
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    privileged: true
+    volumes:
+      - /:/host:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: sleep infinity
+    labels:
+      - "traefik.enable=false"
+    expose:
+      - 8080
+
 networks:
   monitoring:
     external: true
@@ -769,7 +775,8 @@ echo ""
 
 # CPU Usage
 echo -e "${GREEN}CPU Usage:${NC}"
-top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print "CPU Usage: " 100 - $1"%"}'
+cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
+echo "CPU Usage: ${cpu_usage}%"
 echo "Load Average: $(uptime | awk -F'load average:' '{print $2}')"
 echo ""
 
@@ -788,18 +795,19 @@ echo -e "${GREEN}Docker Containers:${NC}"
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -10
 echo ""
 
-# Network Connections
+# Network Statistics (using monitoring-tools container)
 echo -e "${GREEN}Network Statistics:${NC}"
-echo "Active connections: $(netstat -an | grep ESTABLISHED | wc -l)"
-echo "Listening ports: $(netstat -tuln | grep LISTEN | wc -l)"
+if docker ps | grep -q monitoring-tools; then
+    active_conn=$(docker exec monitoring-tools netstat -an 2>/dev/null | grep ESTABLISHED | wc -l || echo "N/A")
+    listen_ports=$(docker exec monitoring-tools netstat -tuln 2>/dev/null | grep LISTEN | wc -l || echo "N/A")
+    echo "Active connections: $active_conn"
+    echo "Listening ports: $listen_ports"
+else
+    echo "Network monitoring unavailable (monitoring-tools container not running)"
+fi
 echo ""
 
-# IO Statistics
-echo -e "${GREEN}Disk I/O:${NC}"
-iostat -x 1 2 | tail -n +7 | awk 'NR>1 {print $1 ": Read: " $4 " KB/s, Write: " $5 " KB/s, Util: " $14 "%"}'
-echo ""
-
-# Top Processes
+# Top Processes (simplified)
 echo -e "${GREEN}Top CPU Processes:${NC}"
 ps aux --sort=-%cpu | head -6 | awk 'NR>1 {printf "%-15s %5s%% %s\n", $11, $3, $2}'
 echo ""
@@ -807,10 +815,9 @@ echo ""
 echo -e "${GREEN}Top Memory Processes:${NC}"
 ps aux --sort=-%mem | head -6 | awk 'NR>1 {printf "%-15s %5s%% %s\n", $11, $4, $2}'
 echo ""
-
 # Service Health
 echo -e "${GREEN}Service Health:${NC}"
-services=("docker" "traefik" "prometheus" "grafana" "node-exporter")
+services=("traefik" "prometheus" "grafana" "node-exporter" "cadvisor" "monitoring-tools")
 for service in "${services[@]}"; do
     if docker ps | grep -q $service; then
         echo -e "$service: ${GREEN}Running${NC}"
@@ -823,7 +830,8 @@ echo ""
 # Prometheus Metrics
 if curl -s http://localhost:9090/-/healthy > /dev/null 2>&1; then
     echo -e "${GREEN}Prometheus Status:${NC} Healthy"
-    echo "Targets: $(curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length') active"
+    targets=$(curl -s http://localhost:9090/api/v1/targets 2>/dev/null | jq '.data.activeTargets | length' 2>/dev/null || echo "N/A")
+    echo "Targets: $targets active"
 else
     echo -e "${RED}Prometheus Status:${NC} Unreachable"
 fi
@@ -887,49 +895,92 @@ EOF
 chmod +x /usr/local/bin/vps-health
 
 # ========================================
-# PHASE 10: Cloudflare Tunnel
+# PHASE 10: Cloudflare Tunnel Setup
 # ========================================
 print_info "Phase 10: Cloudflare Tunnel Setup"
 
-print_step "Installing Cloudflare Tunnel..."
-
-# Install cloudflared
-wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm.deb
-dpkg -i cloudflared-linux-arm64.deb
-rm cloudflared-linux-arm64.deb
+print_step "Setting up Cloudflare Tunnel (Docker-based)..."
 
 # Create config directory
-mkdir -p /etc/cloudflared
-chown $deploy_user:$deploy_user /etc/cloudflared
+mkdir -p /opt/cloudflared
+chown $deploy_user:$deploy_user /opt/cloudflared
+
+# Create Cloudflare Tunnel docker-compose
+cat > /opt/cloudflared/docker-compose.yml << EOF
+version: '3.8'
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml:ro
+      - ./credentials.json:/etc/cloudflared/credentials.json:ro
+    networks:
+      - web
+    depends_on:
+      - traefik
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=2000"
+      - "prometheus.io/path=/metrics"
+
+networks:
+  web:
+    external: true
+EOF
 
 # Create sample config
-cat > /etc/cloudflared/config.yml << EOF
+cat > /opt/cloudflared/config.yml << EOF
 # Cloudflare Tunnel Configuration
-# Replace with your tunnel credentials
+# Replace with your tunnel credentials and UUID
 
 tunnel: YOUR_TUNNEL_UUID
-credentials-file: /etc/cloudflared/YOUR_TUNNEL_UUID.json
+credentials-file: /etc/cloudflared/credentials.json
+
+# Metrics for monitoring
+metrics: 0.0.0.0:2000
 
 ingress:
   # Grafana
   - hostname: grafana.yourdomain.com
-    service: http://localhost:3000
+    service: http://traefik:3000
   
   # Prometheus
   - hostname: prometheus.yourdomain.com
-    service: http://localhost:9090
+    service: http://traefik:9090
   
   # Your API
   - hostname: api.yourdomain.com
-    service: http://localhost:8000
+    service: http://traefik:8000
   
   # Your Frontend
   - hostname: app.yourdomain.com
-    service: http://localhost:3001
+    service: http://traefik:3001
   
   # Catch-all
   - service: http_status:404
 EOF
+
+# Create placeholder credentials file
+cat > /opt/cloudflared/credentials.json << EOF
+{
+  "AccountTag": "your-account-tag",
+  "TunnelSecret": "your-tunnel-secret",
+  "TunnelID": "your-tunnel-id"
+}
+EOF
+
+chmod 600 /opt/cloudflared/credentials.json
+chown -R $deploy_user:$deploy_user /opt/cloudflared
+
+print_warning "To set up Cloudflare Tunnel:"
+print_warning "1. Run: docker run --rm -v /opt/cloudflared:/etc/cloudflared cloudflare/cloudflared:latest tunnel login"
+print_warning "2. Create tunnel: docker run --rm -v /opt/cloudflared:/etc/cloudflared cloudflare/cloudflared:latest tunnel create wise-owl"
+print_warning "3. Replace the config.yml and credentials.json with your actual tunnel details"
+print_warning "4. Start with: cd /opt/cloudflared && docker compose up -d"
 
 # ========================================
 # PHASE 11: Uptime Kuma with Monitoring Integration
@@ -1019,7 +1070,7 @@ tar -czf $BACKUP_DIR/$BACKUP_NAME-configs.tar.gz \
     /opt/traefik \
     /opt/prometheus/config \
     /opt/grafana/provisioning \
-    /etc/cloudflared \
+    /opt/cloudflared \
     2>/dev/null
 
 # Backup Docker volumes
@@ -1209,6 +1260,13 @@ cd /opt/traefik && docker compose up -d
 echo "Starting Uptime Kuma..."
 cd /opt/uptime-kuma && docker compose up -d
 
+echo "Starting Cloudflare Tunnel (if configured)..."
+if [ -f /opt/cloudflared/credentials.json ] && [ -s /opt/cloudflared/credentials.json ]; then
+    cd /opt/cloudflared && docker compose up -d
+else
+    echo "⚠️  Cloudflare Tunnel not configured yet"
+fi
+
 # Wait for services to be ready
 sleep 10
 
@@ -1259,9 +1317,9 @@ echo "✅ Docker installed with optimized config"
 echo "✅ Traefik reverse proxy configured"
 echo "✅ Prometheus monitoring stack deployed"
 echo "✅ Grafana dashboards configured"
-echo "✅ Resource monitoring tools installed"
+echo "✅ Resource monitoring tools installed (Docker-based)"
 echo "✅ Uptime Kuma monitoring ready"
-echo "✅ Cloudflare Tunnel installed"
+echo "✅ Cloudflare Tunnel configured (Docker-based)"
 echo "✅ Backup system configured"
 echo ""
 
@@ -1281,12 +1339,13 @@ echo "Health check: vps-health"
 echo "Start all services: vps-start"
 echo "View logs: docker logs <container-name>"
 echo "Backup now: /opt/backup.sh"
+echo "System tools: docker exec -it monitoring-tools <command>"
 echo ""
 
 echo -e "${YELLOW}=== Next Steps ===${NC}"
 echo "1. Add SSH key: echo 'your-key' >> /home/$deploy_user/.ssh/authorized_keys"
 echo "2. Configure Grafana alerts and notification channels"
-echo "3. Set up Cloudflare Tunnel: cloudflared tunnel login"
+echo "3. Set up Cloudflare Tunnel: cd /opt/cloudflared && docker compose run --rm cloudflared tunnel login"
 echo "4. Deploy your applications using the example in /opt/example-service"
 echo "5. Configure Uptime Kuma monitors for your services"
 echo "6. Review Prometheus alerts in /opt/prometheus/config/alerts.yml"
