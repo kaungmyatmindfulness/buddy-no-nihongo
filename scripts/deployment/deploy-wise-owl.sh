@@ -12,6 +12,17 @@ DEPLOY_USER="${DEPLOY_USER:-deploy}"
 BRANCH="${BRANCH:-master}"
 GO_VERSION="1.24.5"
 
+# Detect platform
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  IS_MAC=true
+  PLATFORM="darwin/arm64"
+  echo "Detected: macOS (Apple Silicon)"
+else
+  IS_MAC=false
+  PLATFORM="linux/arm64"
+  echo "Detected: Linux (Raspberry Pi/ARM64)"
+fi
+
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -80,8 +91,15 @@ fi
 print_info "Phase 1: Directory Setup"
 
 print_step "Creating Wise Owl directories..."
-sudo mkdir -p $INSTALL_DIR/{backups,logs,data}
-sudo chown -R $DEPLOY_USER:$DEPLOY_USER $INSTALL_DIR
+if [ "$IS_MAC" = true ]; then
+  # On Mac, use mkdir without sudo and ensure current user owns directories
+  mkdir -p $INSTALL_DIR/{backups,logs,data}
+  chown -R $DEPLOY_USER $INSTALL_DIR 2>/dev/null || true
+else
+  # On Linux (Pi), use sudo for directory creation
+  sudo mkdir -p $INSTALL_DIR/{backups,logs,data}
+  sudo chown -R $DEPLOY_USER:$DEPLOY_USER $INSTALL_DIR
+fi
 
 # Verify repository
 if [ ! -f "go.work" ]; then
@@ -238,11 +256,22 @@ for service in "${services[@]}"; do
   print_step "Building $service service..."
   
   # Build with context from root directory and service-specific Dockerfile
-  $RUN_AS docker build \
-    --platform linux/arm64 \
-    -t wo-$service-service:latest \
-    -f ./services/$service/Dockerfile \
-    .
+  # Use appropriate platform based on detected OS
+  if [ "$IS_MAC" = true ]; then
+    # On Mac, build for both local testing and ARM64 deployment
+    $RUN_AS docker build \
+      --platform linux/arm64 \
+      -t wo-$service-service:latest \
+      -f ./services/$service/Dockerfile \
+      .
+  else
+    # On Pi, build for local ARM64
+    $RUN_AS docker build \
+      --platform linux/arm64 \
+      -t wo-$service-service:latest \
+      -f ./services/$service/Dockerfile \
+      .
+  fi
 done
 
 # Note: nginx uses the standard nginx:stable-alpine image with custom config volume
@@ -257,7 +286,11 @@ chmod +x $INSTALL_DIR/*.sh 2>/dev/null || true
 
 # Create systemd service for Wise Owl
 print_step "Creating systemd service..."
-sudo tee /etc/systemd/system/wise-owl.service > /dev/null << EOF
+if [ "$IS_MAC" = true ]; then
+  print_warning "Skipping systemd service creation on macOS"
+  print_info "On macOS, use: docker compose -f docker-compose.prod.yml up -d"
+else
+  sudo tee /etc/systemd/system/wise-owl.service > /dev/null << EOF
 [Unit]
 Description=Wise Owl Japanese Vocabulary Learning Platform
 Documentation=https://github.com/yourusername/wise-owl-golang
@@ -282,15 +315,20 @@ Environment="SERVICE_ENV=production"
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable wise-owl.service
+  sudo systemctl daemon-reload
+  sudo systemctl enable wise-owl.service
+fi
 
 # ========================================
 # PHASE 5: Cron Jobs for Wise Owl
 # ========================================
 print_info "Phase 5: Setting up automated tasks"
 
-sudo tee /etc/cron.d/wise-owl > /dev/null << EOF
+if [ "$IS_MAC" = true ]; then
+  print_warning "Skipping cron job setup on macOS"
+  print_info "Consider setting up automated tasks manually using launchd or cron"
+else
+  sudo tee /etc/cron.d/wise-owl > /dev/null << EOF
 # Wise Owl Automated Tasks
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
@@ -304,6 +342,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 # Monitor vocabulary seeding completion (runs every 5 minutes for first day)
 */5 * * * * $DEPLOY_USER cd $INSTALL_DIR && docker compose -f docker-compose.prod.yml logs wo-content-service | grep -q "Seeding completed successfully" && touch $INSTALL_DIR/.seeding-complete 2>&1
 EOF
+fi
 
 # ========================================
 # PHASE 6: Initial Data Preparation
@@ -400,10 +439,19 @@ echo ""
 echo -e "${GREEN}=== Summary ===${NC}"
 echo "✅ Using existing repository in $INSTALL_DIR"
 echo "✅ Protocol buffers generated using Docker"
-echo "✅ Production environment configured"  
+if [ "$IS_MAC" = true ]; then
+  echo "✅ Environment ready for macOS development/testing"
+else
+  echo "✅ Production environment configured"  
+fi
 echo "✅ Docker services built for ARM64"
-echo "✅ Systemd service configured"
-echo "✅ Automated tasks scheduled"
+if [ "$IS_MAC" = true ]; then
+  echo "⚠️  Systemd service skipped (macOS)"
+  echo "⚠️  Automated tasks skipped (macOS)"
+else
+  echo "✅ Systemd service configured"
+  echo "✅ Automated tasks scheduled"
+fi
 echo "✅ Health monitoring configured"
 echo ""
 
@@ -421,8 +469,12 @@ echo "- MongoDB → Port 27017 (wo-mongodb)"
 echo ""
 
 echo -e "${GREEN}=== Start Commands ===${NC}"
-echo "Option 1: sudo systemctl start wise-owl"
-echo "Option 2: cd $INSTALL_DIR && docker compose -f docker-compose.prod.yml up -d"
+if [ "$IS_MAC" = true ]; then
+  echo "macOS: cd $INSTALL_DIR && docker compose -f docker-compose.prod.yml up -d"
+else
+  echo "Option 1: sudo systemctl start wise-owl"
+  echo "Option 2: cd $INSTALL_DIR && docker compose -f docker-compose.prod.yml up -d"
+fi
 echo ""
 
 echo -e "${BLUE}=== Monitoring ===${NC}"
@@ -432,9 +484,17 @@ echo "- Health check: ./check-wise-owl.sh"
 echo ""
 
 echo -e "${YELLOW}=== Access Points ===${NC}"
-echo "- API Gateway: http://$(hostname -I | awk '{print $1}'):8080"
+if [ "$IS_MAC" = true ]; then
+  echo "- API Gateway: http://localhost:8080"
+else
+  echo "- API Gateway: http://$(hostname -I | awk '{print $1}'):8080"
+fi
 echo "- All API endpoints are routed through nginx"
-echo "- MongoDB: $(hostname -I | awk '{print $1}'):27017 (if external access needed)"
+if [ "$IS_MAC" = false ]; then
+  echo "- MongoDB: $(hostname -I | awk '{print $1}'):27017 (if external access needed)"
+else
+  echo "- MongoDB: localhost:27017 (if external access needed)"
+fi
 echo ""
 
 echo -e "${GREEN}=== Important Notes ===${NC}"
@@ -446,11 +506,19 @@ echo "5. Nginx config should be placed in ./nginx/ directory"
 echo ""
 
 echo -e "${BLUE}=== Next Steps ===${NC}"
-echo "1. Review and update $INSTALL_DIR/.env.docker"
-echo "2. Ensure nginx configuration exists in ./nginx/ directory"
-echo "3. Start the services: sudo systemctl start wise-owl"
-echo "4. Monitor initial vocabulary seeding"
-echo "5. Set up CI/CD with GitHub Actions"
+if [ "$IS_MAC" = true ]; then
+  echo "1. Ensure .env.docker file exists with proper configuration"
+  echo "2. Ensure nginx configuration exists in ./nginx/ directory"
+  echo "3. Start the services: docker compose -f docker-compose.prod.yml up -d"
+  echo "4. Monitor initial vocabulary seeding"
+  echo "5. Set up automated tasks manually if needed"
+else
+  echo "1. Review and update $INSTALL_DIR/.env.docker"
+  echo "2. Ensure nginx configuration exists in ./nginx/ directory"
+  echo "3. Start the services: sudo systemctl start wise-owl"
+  echo "4. Monitor initial vocabulary seeding"
+  echo "5. Set up CI/CD with GitHub Actions"
+fi
 echo ""
 
 print_info "Ready for production deployment with Japanese vocabulary learning! 🚀"
