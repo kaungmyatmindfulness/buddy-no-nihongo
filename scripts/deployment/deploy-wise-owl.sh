@@ -10,7 +10,7 @@ set -e
 INSTALL_DIR="$(pwd)"  # Use current directory as install directory
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 BRANCH="${BRANCH:-master}"
-GO_VERSION="1.22.5"
+GO_VERSION="1.24.5"
 
 # Colors
 GREEN='\033[0;32m'
