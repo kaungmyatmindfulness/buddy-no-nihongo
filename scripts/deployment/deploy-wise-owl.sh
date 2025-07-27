@@ -136,52 +136,7 @@ else
   if [ -d "proto" ] || find . -name "*.proto" -type f | head -1 | grep -q .; then
     print_step "Found proto files, generating with Docker..."
     
-    # Create proto generation script
-    cat > $INSTALL_DIR/generate-protos.sh << 'EOF'
-#!/bin/bash
-set -e
-
-# Find all proto files
-proto_files=$(find . -name "*.proto" -type f)
-
-if [ -z "$proto_files" ]; then
-  echo "No proto files found"
-  exit 0
-fi
-
-echo "Found proto files:"
-echo "$proto_files"
-
-# Install protoc and Go plugins
-apk add --no-cache protobuf-dev
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-
-export PATH=$PATH:$(go env GOPATH)/bin
-
-# Generate for each proto file
-for proto_file in $proto_files; do
-  echo "Generating for: $proto_file"
-  
-  # Determine output directory based on proto file location
-  proto_dir=$(dirname "$proto_file")
-  
-  # Generate Go files
-  protoc \
-    --proto_path=. \
-    --go_out=. \
-    --go_opt=paths=source_relative \
-    --go-grpc_out=. \
-    --go-grpc_opt=paths=source_relative \
-    "$proto_file"
-done
-
-echo "Proto generation completed"
-EOF
-    
-    chmod +x $INSTALL_DIR/generate-protos.sh
-    
-    # Run proto generation in Docker
+    # Run proto generation directly in Docker without separate script
     $RUN_AS docker run --rm \
       -v "$INSTALL_DIR:/workspace" \
       -w /workspace \
@@ -189,10 +144,43 @@ EOF
       -e GOCACHE=/tmp/.gocache \
       -e GOMODCACHE=/tmp/.gomodcache \
       golang:${GO_VERSION}-alpine \
-      ./generate-protos.sh
-    
-    # Clean up
-    rm -f $INSTALL_DIR/generate-protos.sh
+      sh -c "
+        set -e
+        
+        # Find all proto files
+        proto_files=\$(find . -name '*.proto' -type f)
+        
+        if [ -z \"\$proto_files\" ]; then
+          echo 'No proto files found'
+          exit 0
+        fi
+        
+        echo 'Found proto files:'
+        echo \"\$proto_files\"
+        
+        # Install protoc and Go plugins
+        apk add --no-cache protobuf-dev
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+        
+        export PATH=\$PATH:\$(go env GOPATH)/bin
+        
+        # Generate for each proto file
+        for proto_file in \$proto_files; do
+          echo \"Generating for: \$proto_file\"
+          
+          # Generate Go files
+          protoc \
+            --proto_path=. \
+            --go_out=. \
+            --go_opt=paths=source_relative \
+            --go-grpc_out=. \
+            --go-grpc_opt=paths=source_relative \
+            \"\$proto_file\"
+        done
+        
+        echo 'Proto generation completed'
+      "
     
     print_info "Proto files generated successfully"
   else
