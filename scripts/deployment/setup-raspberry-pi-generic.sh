@@ -243,7 +243,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
+      - "9080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yml:/traefik.yml:ro
@@ -841,7 +841,7 @@ echo ""
 echo -e "${BLUE}Access URLs:${NC}"
 echo "Grafana: http://$(hostname -I | awk '{print $1}'):3000"
 echo "Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
-echo "Traefik: http://$(hostname -I | awk '{print $1}'):8080"
+echo "Traefik: http://$(hostname -I | awk '{print $1}'):9080"
 EOF
 
 chmod +x /usr/local/bin/vps-monitor
@@ -1279,7 +1279,7 @@ echo "📊 Access your monitoring dashboards:"
 echo "   Grafana: http://$(hostname -I | awk '{print $1}'):3000 (admin/admin)"
 echo "   Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
 echo "   Uptime Kuma: http://$(hostname -I | awk '{print $1}'):3001"
-echo "   Traefik: http://$(hostname -I | awk '{print $1}'):8080"
+echo "   Traefik: http://$(hostname -I | awk '{print $1}'):9080"
 EOF
 
 chmod +x /usr/local/bin/vps-start
@@ -1330,7 +1330,7 @@ echo "  Password: admin (change on first login)"
 echo ""
 echo "Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
 echo "Uptime Kuma: http://$(hostname -I | awk '{print $1}'):3001"
-echo "Traefik Dashboard: http://$(hostname -I | awk '{print $1}'):8080"
+echo "Traefik Dashboard: http://$(hostname -I | awk '{print $1}'):9080"
 echo ""
 
 echo -e "${BLUE}=== Quick Commands ===${NC}"
