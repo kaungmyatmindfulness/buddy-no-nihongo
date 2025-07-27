@@ -61,9 +61,17 @@ get_script_dir() {
 
 # Get project root directory
 get_project_root() {
-    local script_dir=$(get_script_dir)
-    # Assumes scripts are in scripts/ subdirectory
-    cd "$script_dir/.." && pwd
+    local script_dir
+    # Check if we're being called from common.sh or from another script
+    if [[ "${BASH_SOURCE[1]}" == *"/utils/common.sh" ]] || [[ "${BASH_SOURCE[0]}" == *"/utils/common.sh" ]]; then
+        # Called from common.sh - go up two levels from scripts/utils/
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        cd "$script_dir/../.." && pwd
+    else
+        # Called from another script - go up one level from scripts/
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+        cd "$script_dir/.." && pwd
+    fi
 }
 
 # Check if running in Docker
