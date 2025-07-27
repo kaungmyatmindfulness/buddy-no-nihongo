@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-DEFAULT_USER="deploy"
+CURRENT_USER="$(logname 2>/dev/null || echo $SUDO_USER)"  # Get the original user if running with sudo
 PROMETHEUS_VERSION="v2.45.0"
 GRAFANA_VERSION="10.0.0"
 
@@ -80,38 +80,28 @@ apt install -y \
     logrotate
 
 # ========================================
-# PHASE 2: User Management
+# PHASE 2: User Setup
 # ========================================
-print_info "Phase 2: User Management"
+print_info "Phase 2: User Setup"
 
-read -p "Create deployment user? (y/n, default: y): " create_user
-create_user=${create_user:-y}
+print_info "Using current user: $CURRENT_USER"
+print_info "Ensuring user is in docker group..."
 
-if [[ "$create_user" =~ ^[Yy]$ ]]; then
-  print_step "Creating deployment user..."
-  read -p "Enter deployment username (default: $DEFAULT_USER): " deploy_user
-  deploy_user=${deploy_user:-$DEFAULT_USER}
-
-  if ! id "$deploy_user" &>/dev/null; then
-    useradd -m -s /bin/bash "$deploy_user"
-    usermod -aG sudo "$deploy_user"
-    print_info "User '$deploy_user' created"
-  else
-    print_info "User '$deploy_user' already exists"
-  fi
-
-  print_step "Setting up SSH key authentication..."
-  mkdir -p /home/$deploy_user/.ssh
-  chmod 700 /home/$deploy_user/.ssh
-  chown $deploy_user:$deploy_user /home/$deploy_user/.ssh
-
-  echo ""
-  print_warning "Add your SSH public key to /home/$deploy_user/.ssh/authorized_keys"
-  print_warning "Then disable password authentication in /etc/ssh/sshd_config"
+# Add current user to docker group (will take effect after next login)
+if id "$CURRENT_USER" &>/dev/null; then
+  usermod -aG docker "$CURRENT_USER"
+  print_info "User '$CURRENT_USER' added to docker group"
 else
-  print_info "Skipping user creation - using root user"
-  deploy_user="root"
+  print_warning "Could not find user '$CURRENT_USER'. Make sure to add your user to docker group manually."
 fi
+
+print_step "SSH key setup..."
+print_info "To set up SSH key authentication for user '$CURRENT_USER':"
+print_info "1. mkdir -p /home/$CURRENT_USER/.ssh"
+print_info "2. Add your SSH public key to /home/$CURRENT_USER/.ssh/authorized_keys"
+print_info "3. chmod 600 /home/$CURRENT_USER/.ssh/authorized_keys"
+print_info "4. chown $CURRENT_USER:$CURRENT_USER /home/$CURRENT_USER/.ssh/authorized_keys"
+print_info "5. Disable password authentication in /etc/ssh/sshd_config"
 
 # ========================================
 # PHASE 3: Security Hardening
@@ -165,7 +155,6 @@ if ! command -v docker &> /dev/null; then
     sh get-docker.sh
     rm get-docker.sh
     
-    usermod -aG docker $deploy_user
     print_info "Docker installed successfully"
 else
     print_info "Docker already installed: $(docker --version)"
@@ -225,7 +214,7 @@ print_info "Phase 6: Traefik Reverse Proxy Setup"
 
 print_step "Setting up Traefik..."
 mkdir -p /opt/traefik/{config,data,logs}
-chown -R $deploy_user:$deploy_user /opt/traefik
+chown -R $CURRENT_USER:$CURRENT_USER /opt/traefik
 
 # Get email for Let's Encrypt
 read -p "Enter email for Let's Encrypt SSL certificates: " le_email
@@ -397,7 +386,7 @@ EOF
 mkdir -p /opt/traefik/data/letsencrypt
 touch /opt/traefik/data/letsencrypt/acme.json
 chmod 600 /opt/traefik/data/letsencrypt/acme.json
-chown $deploy_user:$deploy_user /opt/traefik/data/letsencrypt/acme.json
+chown $CURRENT_USER:$CURRENT_USER /opt/traefik/data/letsencrypt/acme.json
 
 # ========================================
 # PHASE 7: Prometheus Monitoring
@@ -406,7 +395,7 @@ print_info "Phase 7: Prometheus Setup"
 
 print_step "Setting up Prometheus..."
 mkdir -p /opt/prometheus/{config,data}
-chown -R $deploy_user:$deploy_user /opt/prometheus
+chown -R $CURRENT_USER:$CURRENT_USER /opt/prometheus
 
 # Create Prometheus configuration
 cat > /opt/prometheus/config/prometheus.yml << EOF
@@ -603,7 +592,7 @@ networks:
     external: true
 EOF
 
-chown -R $deploy_user:$deploy_user /opt/prometheus
+chown -R $CURRENT_USER:$CURRENT_USER /opt/prometheus
 
 # ========================================
 # PHASE 8: Grafana Dashboard
@@ -903,7 +892,7 @@ print_step "Setting up Cloudflare Tunnel (Docker-based)..."
 
 # Create config directory
 mkdir -p /opt/cloudflared
-chown $deploy_user:$deploy_user /opt/cloudflared
+chown $CURRENT_USER:$CURRENT_USER /opt/cloudflared
 
 # Create Cloudflare Tunnel docker-compose
 cat > /opt/cloudflared/docker-compose.yml << EOF
@@ -974,7 +963,7 @@ cat > /opt/cloudflared/credentials.json << EOF
 EOF
 
 chmod 600 /opt/cloudflared/credentials.json
-chown -R $deploy_user:$deploy_user /opt/cloudflared
+chown -R $CURRENT_USER:$CURRENT_USER /opt/cloudflared
 
 print_warning "To set up Cloudflare Tunnel:"
 print_warning "1. Run: docker run --rm -v /opt/cloudflared:/etc/cloudflared cloudflare/cloudflared:latest tunnel login"
@@ -989,7 +978,7 @@ print_info "Phase 11: Uptime Kuma Setup"
 
 print_step "Setting up Uptime Kuma..."
 mkdir -p /opt/uptime-kuma
-chown -R $deploy_user:$deploy_user /opt/uptime-kuma
+chown -R $CURRENT_USER:$CURRENT_USER /opt/uptime-kuma
 
 cat > /opt/uptime-kuma/docker-compose.yml << EOF
 version: '3.8'
@@ -1035,7 +1024,7 @@ print_info "Phase 12: Logging & Backup Infrastructure"
 print_step "Creating logging directories..."
 mkdir -p /var/log/api-logs/{access,error,audit}
 mkdir -p /opt/logging/scripts
-chown -R $deploy_user:$deploy_user /var/log/api-logs
+chown -R $CURRENT_USER:$CURRENT_USER /var/log/api-logs
 
 # Create log rotation config
 cat > /etc/logrotate.d/api-logs << EOF
@@ -1046,7 +1035,7 @@ cat > /etc/logrotate.d/api-logs << EOF
     delaycompress
     missingok
     notifempty
-    create 0644 $deploy_user $deploy_user
+    create 0644 $CURRENT_USER $CURRENT_USER
     sharedscripts
     postrotate
         docker kill -s USR1 \$(docker ps -q) 2>/dev/null || true
@@ -1343,7 +1332,7 @@ echo "System tools: docker exec -it monitoring-tools <command>"
 echo ""
 
 echo -e "${YELLOW}=== Next Steps ===${NC}"
-echo "1. Add SSH key: echo 'your-key' >> /home/$deploy_user/.ssh/authorized_keys"
+echo "1. Add SSH key: echo 'your-key' >> /home/$CURRENT_USER/.ssh/authorized_keys"
 echo "2. Configure Grafana alerts and notification channels"
 echo "3. Set up Cloudflare Tunnel: cd /opt/cloudflared && docker compose run --rm cloudflared tunnel login"
 echo "4. Deploy your applications using the example in /opt/example-service"

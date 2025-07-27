@@ -8,7 +8,7 @@ set -e
 
 # Configuration
 INSTALL_DIR="$(pwd)"  # Use current directory as install directory
-DEPLOY_USER="${DEPLOY_USER:-deploy}"
+CURRENT_USER="$(whoami)"
 BRANCH="${BRANCH:-master}"
 GO_VERSION="1.24.5"
 
@@ -47,10 +47,10 @@ print_step() {
   echo -e "${BLUE}[STEP]${NC} $1"
 }
 
-# Check if running as the deploy user or root
+# Check if running as root
 if [ "$EUID" -eq 0 ]; then 
-  print_warning "Running as root, will use sudo -u $DEPLOY_USER for operations"
-  RUN_AS="sudo -u $DEPLOY_USER"
+  print_warning "Running as root, operations will run as root user"
+  RUN_AS=""
 else
   RUN_AS=""
 fi
@@ -94,11 +94,13 @@ print_step "Creating Wise Owl directories..."
 if [ "$IS_MAC" = true ]; then
   # On Mac, use mkdir without sudo and ensure current user owns directories
   mkdir -p $INSTALL_DIR/{backups,logs,data}
-  chown -R $DEPLOY_USER $INSTALL_DIR 2>/dev/null || true
+  chown -R $CURRENT_USER $INSTALL_DIR 2>/dev/null || true
 else
-  # On Linux (Pi), use sudo for directory creation
-  sudo mkdir -p $INSTALL_DIR/{backups,logs,data}
-  sudo chown -R $DEPLOY_USER:$DEPLOY_USER $INSTALL_DIR
+  # On Linux (Pi), create directories and set ownership to current user
+  mkdir -p $INSTALL_DIR/{backups,logs,data}
+  if [ "$EUID" -eq 0 ]; then
+    chown -R $CURRENT_USER:$CURRENT_USER $INSTALL_DIR
+  fi
 fi
 
 # Verify repository
@@ -304,7 +306,7 @@ WorkingDirectory=$INSTALL_DIR
 ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
 Restart=on-failure
-User=$DEPLOY_USER
+User=$CURRENT_USER
 Group=docker
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
 
@@ -334,13 +336,13 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 # Daily backup at 2 AM (includes all MongoDB databases)
-0 2 * * * $DEPLOY_USER cd $INSTALL_DIR && ./backup-prod.sh create >> $INSTALL_DIR/logs/backup.log 2>&1
+0 2 * * * $CURRENT_USER cd $INSTALL_DIR && ./backup-prod.sh create >> $INSTALL_DIR/logs/backup.log 2>&1
 
 # Weekly cleanup on Sunday at 3 AM
 0 3 * * 0 root docker system prune -af >> $INSTALL_DIR/logs/cleanup.log 2>&1
 
 # Monitor vocabulary seeding completion (runs every 5 minutes for first day)
-*/5 * * * * $DEPLOY_USER cd $INSTALL_DIR && docker compose -f docker-compose.prod.yml logs wo-content-service | grep -q "Seeding completed successfully" && touch $INSTALL_DIR/.seeding-complete 2>&1
+*/5 * * * * $CURRENT_USER cd $INSTALL_DIR && docker compose -f docker-compose.prod.yml logs wo-content-service | grep -q "Seeding completed successfully" && touch $INSTALL_DIR/.seeding-complete 2>&1
 EOF
 fi
 
@@ -457,7 +459,7 @@ echo ""
 
 echo -e "${YELLOW}=== Deployment Summary ===${NC}"
 echo "Install Dir: $INSTALL_DIR"
-echo "Service User: $DEPLOY_USER"
+echo "Current User: $CURRENT_USER"
 echo ""
 
 echo -e "${BLUE}=== Architecture ===${NC}"
