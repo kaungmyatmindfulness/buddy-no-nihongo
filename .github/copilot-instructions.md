@@ -12,7 +12,7 @@ This is a **Japanese vocabulary learning platform** built as microservices with 
 
 ### Service Communication Patterns
 
-- **External**: HTTP REST APIs via Nginx gateway (port 80)
+- **External**: HTTP REST APIs via Nginx gateway (port 8080 in dev, 80 in prod)
 - **Internal**: gRPC on unique ports (`content`: 50052, `quiz`: 50053, etc.)
 - **Database**: Each service has dedicated MongoDB database (`{service}_db`)
 
@@ -21,14 +21,16 @@ This is a **Japanese vocabulary learning platform** built as microservices with 
 ### Core Commands (use these, not manual docker/go commands)
 
 ```bash
-./dev.sh start          # Start all services in development mode
-./dev-watch.sh          # Start with hot reload (requires Docker Compose 2.22+)
-./generate-service.sh   # Create new service from template
+./scripts/dev.sh start          # Start all services in development mode
+./scripts/dev-watch.sh          # Start with hot reload (requires Docker Compose 2.22+)
+./scripts/generate-service.sh   # Create new service from template
+./scripts/test-dev.sh           # Quick health check of all services
 ```
 
 ### Environment Setup
 
-- Environment files: `.env.local` (dev), `.env.docker` (production)
+- Environment files: `.env.local` (dev), `.env.docker` (production), `.env.example` (template)
+- Use `.envrc` for direnv support with `dotenv .env.local`
 - Config loaded via `lib/config.LoadConfig()` with defaults
 - Auth0 integration optional (set `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`)
 
@@ -92,11 +94,19 @@ services/{name}/
 
 ### Adding New Services
 
-1. Run `./generate-service.sh <service-name>`
-2. Update `go.work` to include new service
+1. Run `./scripts/generate-service.sh <service-name>`
+2. Update `go.work` to include new service: `use ./services/<service-name>`
 3. Add service to `docker-compose.dev.yml` and `docker-compose.yml`
-4. Add Nginx routing rules in `nginx/default.conf`
+4. Add Nginx routing rules in `nginx/default.conf` for `/api/v1/<service>/`
 5. Define protobuf contracts if inter-service communication needed
+
+### Testing & Debugging
+
+- No formal test suite currently - services validated via health endpoints
+- Use `./scripts/test-dev.sh` for quick service health verification
+- Services expose `/health`, `/health/ready`, and `/health/live` endpoints
+- gRPC services can be tested with grpcurl or similar tools
+- Individual services accessible in dev: `users:8081`, `content:8082`, `quiz:8083`
 
 ## Key Files to Reference
 
@@ -105,3 +115,5 @@ services/{name}/
 - `templates/service-template/cmd/main.go` - Service template structure
 - `services/content/cmd/main.go` - Example dual-server implementation
 - `nginx/default.conf` - API Gateway routing configuration
+- `proto/content/content.proto` - Example gRPC service definition
+- `docker-compose.dev.yml` - Development environment with hot reload

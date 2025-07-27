@@ -1,56 +1,266 @@
-# Go build files
-# These are the compiled executables. We build them inside Docker, so we don't need them in Git.
-/services/users/main
-/services/content/main
+# Wise Owl Go Microservices - .gitignore
 
-# New service-specific build outputs (with -o flag naming)
-/services/users/users-service
-/services/content/content-service
-/services/quiz/quiz-service
+# ==============================================================================
+# Go specific
+# ==============================================================================
 
-# Generic Go build patterns
-*-service
-main
-cmd
+# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Go test and coverage files
+# Test binary, built with `go test -c`
 *.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+# Go workspace file
+go.work.sum
+
+# ==============================================================================
+# Development & Build artifacts
+# ==============================================================================
+
+# Temporary build directory
+tmp/
+.tmp/
+
+# Build outputs
+dist/
+build/
+
+# Air live reload temporary files
+.air.toml.local
+
+# ==============================================================================
+# Environment & Configuration
+# ==============================================================================
+
+# Environment files (keep examples)
+.env
+.env.local
+.env.production
+.env.staging
+.env.docker
+
+# Keep example files
+!.env.example
+!.env.local.example
+
+# ==============================================================================
+# Docker & Containerization
+# ==============================================================================
+
+# Docker volumes data
+docker-data/
+.docker/
+
+# Docker Compose override files
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ==============================================================================
+# Database & Data
+# ==============================================================================
+
+# MongoDB data directories
+data/
+mongo-data/
+mongodb-data/
+
+# Database dumps and backups
+*.dump
+*.sql
+*.db
+backups/*.gz
+backups/*.tar
+backups/*.zip
+
+# ==============================================================================
+# Logs & Monitoring
+# ==============================================================================
+
+# Log files
+*.log
+logs/*.log
+logs/**/*.log
+
+# ==============================================================================
+# IDE & Editor files
+# ==============================================================================
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/copilot-instructions.md
+
+# GoLand/IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ==============================================================================
+# macOS specific
+# ==============================================================================
+
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# ==============================================================================
+# Linux specific
+# ==============================================================================
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# KDE directory preferences
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# ==============================================================================
+# Windows specific
+# ==============================================================================
+
+# Windows thumbnail cache files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+
+# Dump file
+*.stackdump
+
+# Folder config file
+[Dd]esktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# ==============================================================================
+# Security & Secrets
+# ==============================================================================
+
+# Private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Certificate files
+*.crt
+*.cer
+
+# SSH keys
+id_rsa
+id_ecdsa
+id_ed25519
+
+# ==============================================================================
+# Generated & Protocol Buffer files
+# ==============================================================================
+
+# Keep generated proto files as they're part of the build process
+# but ignore if they get recreated locally during development
+# gen/
+
+# ==============================================================================
+# Miscellaneous
+# ==============================================================================
+
+# Compressed files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Local development files
+.local/
+local/
+
+# Testing coverage reports
 coverage.txt
 coverage.html
+coverage.out
 
-# Go build cache and module cache (for local development)
-.cache/
-go.sum.backup
+# Benchmark results
+*.bench
 
-# Air hot reload temporary files (development)
-tmp/
-.air/
-**/tmp/
+# Memory profiles
+*.mprof
+*.pprof
 
-# IDE and OS files
-.idea/
-.vscode/
-*.swp
-*~
-.DS_Store
+# ==============================================================================
+# Project specific
+# ==============================================================================
 
-# Environment files
-# Never commit environment files, which may contain secrets.
-# Use a .env.example file as a template instead.
-.env
-.env.*
-!.env.example
-!.env.health.example
+# Local protobuf generation scripts
+proto-gen-local.sh
 
-# Docker
-# Ignore local docker-compose override files
-docker-compose.override.yml
+# Service-specific local configs
+services/*/local.yml
+services/*/.env.local
 
-# Go vendor directory
-/vendor/
+# Air config overrides for individual services
+services/*/.air.toml
+
+# Local development overrides
+local-*
+*-local.*
