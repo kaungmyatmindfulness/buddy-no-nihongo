@@ -261,3 +261,7 @@ services/*/.env.local
 # Local development overrides
 local-*
 *-local.*
+
+# Script logs and temporary files
+scripts/**/*.log
+scripts/**/tmp/

@@ -1,0 +1,85 @@
+#!/bin/bash
+# Wise Owl Development Script - Main Entry Point
+# This script provides easy access to development and deployment scripts
+
+set -e
+
+# Load common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/scripts/utils/common.sh"
+
+print_usage() {
+    show_banner
+    
+    echo "Development and deployment scripts for Wise Owl"
+    echo ""
+    echo "Usage: $0 <category> <command> [args...]"
+    echo ""
+    echo "Categories:"
+    echo "  dev, development   - Development environment management"
+    echo "  deploy, deployment - Production deployment scripts"
+    echo ""
+    echo "Development Commands:"
+    echo "  ./wise-owl dev setup     - Initial development setup"
+    echo "  ./wise-owl dev start     - Start all services"
+    echo "  ./wise-owl dev watch     - Start with hot reload"
+    echo "  ./wise-owl dev stop      - Stop all services"
+    echo "  ./wise-owl dev test      - Test service health"
+    echo "  ./wise-owl dev logs      - Show service logs"
+    echo "  ./wise-owl dev status    - Show service status"
+    echo "  ./wise-owl dev clean     - Clean up containers and volumes"
+    echo ""
+    echo "Deployment Commands:"
+    echo "  ./wise-owl deploy setup  - Setup production server"
+    echo "  ./wise-owl deploy app    - Deploy Wise Owl application"
+    echo ""
+    echo "Direct script access:"
+    echo "  scripts/development/dev.sh         - Development management"
+    echo "  scripts/development/dev-watch.sh   - Hot reload development"
+    echo "  scripts/development/test-dev.sh    - Health check tests"
+    echo "  scripts/deployment/setup-raspberry-pi-generic.sh - Server setup"
+    echo "  scripts/deployment/deploy-wise-owl.sh           - App deployment"
+}
+
+# Main script routing
+case "$1" in
+    "dev"|"development")
+        case "$2" in
+            "watch")
+                exec "$SCRIPT_DIR/scripts/development/dev-watch.sh" "${@:3}"
+                ;;
+            "test")
+                exec "$SCRIPT_DIR/scripts/development/test-dev.sh" "${@:3}"
+                ;;
+            *)
+                exec "$SCRIPT_DIR/scripts/development/dev.sh" "${@:2}"
+                ;;
+        esac
+        ;;
+    
+    "deploy"|"deployment")
+        case "$2" in
+            "setup")
+                exec "$SCRIPT_DIR/scripts/deployment/setup-raspberry-pi-generic.sh" "${@:3}"
+                ;;
+            "app")
+                exec "$SCRIPT_DIR/scripts/deployment/deploy-wise-owl.sh" "${@:3}"
+                ;;
+            *)
+                print_error "Unknown deployment command: $2"
+                print_usage
+                exit 1
+                ;;
+        esac
+        ;;
+    
+    "help"|"-h"|"--help"|"")
+        print_usage
+        ;;
+    
+    *)
+        print_error "Unknown category: $1"
+        print_usage
+        exit 1
+        ;;
+esac

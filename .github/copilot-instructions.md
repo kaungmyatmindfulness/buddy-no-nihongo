@@ -21,9 +21,18 @@ This is a **Japanese vocabulary learning platform** built as microservices with 
 ### Core Commands (use these, not manual docker/go commands)
 
 ```bash
-./scripts/dev.sh start          # Start all services in development mode
-./scripts/dev-watch.sh          # Start with hot reload (requires Docker Compose 2.22+)
-./scripts/test-dev.sh           # Quick health check of all services
+./wise-owl dev start            # Start all services in development mode
+./wise-owl dev watch            # Start with hot reload (requires Docker Compose 2.22+)
+./wise-owl dev test             # Quick health check of all services
+./wise-owl dev status           # Show service status
+```
+
+**Alternative direct paths:**
+
+```bash
+./scripts/development/dev.sh [command]
+./scripts/development/dev-watch.sh
+./scripts/development/test-dev.sh
 ```
 
 ### Environment Setup

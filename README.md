@@ -87,7 +87,7 @@ wise-owl-golang/
 
    ```bash
    # Create local environment file
-   ./dev.sh setup
+   ./wise-owl dev setup
 
    # Edit .env.local with your Auth0 credentials
    AUTH0_DOMAIN=your-auth0-domain.auth0.com
@@ -98,20 +98,20 @@ wise-owl-golang/
 
    ```bash
    # Start all services
-   ./dev.sh start
+   ./wise-owl dev start
 
    # Or start with hot reload (requires Docker Compose 2.22+)
-   ./dev-watch.sh
+   ./wise-owl dev watch
    ```
 
 4. **Verify Installation**
 
    ```bash
    # Test all services
-   ./test-dev.sh
+   ./wise-owl dev test
 
    # Access points:
-   # - API Gateway: http://localhost
+   # - API Gateway: http://localhost:8080
    # - Users Service: http://localhost:8081
    # - Content Service: http://localhost:8082
    # - Quiz Service: http://localhost:8083
@@ -126,21 +126,304 @@ docker-compose up -d
 # Services will be available on port 80 via Nginx gateway
 ```
 
-## 🔧 Development Workflows
+## � Scripts Documentation
+
+### Overview: What, Why, and How
+
+The Wise Owl project uses a structured script system to simplify development and deployment workflows. These scripts automate complex Docker Compose operations, environment setup, health checking, and production deployment processes.
+
+#### **What**: Script Categories
+
+The project organizes scripts into three main categories:
+
+1. **Development Scripts** (`scripts/development/`): Local development environment management
+2. **Deployment Scripts** (`scripts/deployment/`): Production server setup and application deployment
+3. **Utility Scripts** (`scripts/utils/`): Shared functions and common utilities
+
+#### **Why**: The Need for Script Automation
+
+- **Complexity Management**: Managing 5+ microservices with Docker Compose requires many commands
+- **Environment Consistency**: Ensures all developers use the same setup procedures
+- **Error Reduction**: Automated health checks and validation prevent common mistakes
+- **Onboarding Speed**: New developers can start with a single command
+- **Production Safety**: Standardized deployment procedures reduce deployment risks
+
+#### **How**: Running the Scripts
+
+### Main Entry Point: `./wise-owl`
+
+The project provides a unified command interface through the main `./wise-owl` script:
+
+```bash
+# Check all available commands
+./wise-owl --help
+
+# Development commands
+./wise-owl dev <command>
+
+# Deployment commands
+./wise-owl deploy <command>
+```
+
+### Development Scripts
+
+#### 1. Environment Setup and Management
+
+**Initial Setup** - Creates environment files and validates prerequisites:
+
+```bash
+# What: Creates .env.local from .env.example template
+# Why: Ensures consistent environment configuration
+# How: Copy and customize the example environment
+./wise-owl dev setup
+```
+
+**Start Development Environment** - Launches all microservices:
+
+```bash
+# What: Starts all services (nginx, users, content, quiz, mongodb)
+# Why: Single command to launch the entire development stack
+# How: Uses docker-compose.dev.yml with development configurations
+./wise-owl dev start
+```
+
+**Hot Reload Development** - Starts with automatic code reloading:
+
+```bash
+# What: Starts services with Docker Compose watch mode
+# Why: Automatically rebuilds containers when code changes
+# How: Requires Docker Compose 2.22+, falls back to normal mode if unsupported
+./wise-owl dev watch
+```
+
+#### 2. Service Management
+
+**Stop Services** - Cleanly shuts down all containers:
+
+```bash
+# What: Stops all running Docker containers
+# Why: Clean shutdown preserves data and prevents port conflicts
+# How: Uses docker-compose down command
+./wise-owl dev stop
+```
+
+**Restart Services** - Stops and starts services:
+
+```bash
+# What: Combines stop and start operations
+# Why: Quick way to apply configuration changes
+# How: Runs stop followed by start
+./wise-owl dev restart
+```
+
+**View Logs** - Monitor service output:
+
+```bash
+# What: Shows logs from all services or specific service
+# Why: Essential for debugging and monitoring
+# How: Uses docker-compose logs with follow mode
+
+# All services
+./wise-owl dev logs
+
+# Specific service
+./wise-owl dev logs users-service
+```
+
+#### 3. Development Utilities
+
+**Health Check** - Validates all services are responding:
+
+```bash
+# What: Tests HTTP endpoints on all microservices
+# Why: Quickly verify that all services are healthy
+# How: Curl requests to /health endpoints on each service
+./wise-owl dev test
+```
+
+**Service Status** - Shows current state of containers:
+
+```bash
+# What: Displays Docker container status and resource usage
+# Why: Quick overview of what's running and resource consumption
+# How: Uses docker-compose ps and docker stats
+./wise-owl dev status
+```
+
+**Build Services** - Rebuild containers from scratch:
+
+```bash
+# What: Rebuilds all Docker images without cache
+# Why: Apply Dockerfile changes or clear build issues
+# How: Uses docker-compose build --no-cache
+./wise-owl dev build
+```
+
+**Clean Environment** - Complete cleanup:
+
+```bash
+# What: Stops containers, removes volumes and images
+# Why: Fresh start when development environment has issues
+# How: docker-compose down -v --remove-orphans
+./wise-owl dev clean
+```
+
+### Deployment Scripts
+
+#### Server Setup
+
+**Production Server Setup** - Prepares a clean server for deployment:
+
+```bash
+# What: Installs Docker, configures security, sets up monitoring
+# Why: Automated server hardening and essential software installation
+# How: Comprehensive setup script with firewall, fail2ban, user management
+sudo ./wise-owl deploy setup
+
+# Or run directly:
+sudo ./scripts/deployment/setup-raspberry-pi-generic.sh
+```
+
+**Features of server setup:**
+
+- System updates and essential packages
+- Docker and Docker Compose installation
+- User account creation and SSH key setup
+- Firewall configuration (UFW)
+- Security hardening with fail2ban
+- Monitoring setup (Prometheus, Grafana)
+
+#### Application Deployment
+
+**Deploy Wise Owl Application** - Deploys the application to a prepared server:
+
+```bash
+# What: Clones code, builds containers, starts production services
+# Why: Automated deployment reduces human error
+# How: Git clone, docker-compose build, environment setup
+./wise-owl deploy app
+
+# Or run directly:
+./scripts/deployment/deploy-wise-owl.sh
+```
+
+**Features of application deployment:**
+
+- Git repository cloning and updates
+- Protocol buffer code generation
+- Production environment configuration
+- SSL certificate setup (optional)
+- Database initialization and seeding
+- Health check validation
+
+### Direct Script Access
+
+If you prefer to run scripts directly instead of using the unified interface:
+
+```bash
+# Development scripts
+./scripts/development/dev.sh [command]          # Main development manager
+./scripts/development/dev-watch.sh              # Hot reload development
+./scripts/development/test-dev.sh               # Health check testing
+
+# Deployment scripts
+./scripts/deployment/setup-raspberry-pi-generic.sh  # Server setup
+./scripts/deployment/deploy-wise-owl.sh             # Application deployment
+
+# Utility scripts
+./scripts/utils/common.sh                       # Shared functions (sourced by others)
+./scripts/show-organization.sh                  # Display script organization
+```
+
+### Script Requirements and Prerequisites
+
+#### Development Requirements
+
+- **Docker**: Version 20.10+ with Docker Compose
+- **Operating System**: macOS, Linux, or Windows with WSL2
+- **Ports**: 8080-8083, 27017, 50052-50053 must be available
+- **Disk Space**: Minimum 2GB for Docker images and volumes
+
+#### Deployment Requirements
+
+- **Target Server**: Ubuntu 20.04+ or Debian 11+ (for production deployment)
+- **Root Access**: Server setup requires sudo/root privileges
+- **Network**: Internet connectivity for package installation
+- **Resources**: Minimum 2GB RAM, 10GB disk space
+
+### Environment Files
+
+The scripts work with different environment configurations:
+
+- **`.env.local`**: Development environment (created by `./wise-owl dev setup`)
+- **`.env.docker`**: Production environment (created by deployment scripts)
+- **`.env.example`**: Template file with all required variables
+
+### Troubleshooting Scripts
+
+**Common Issues and Solutions:**
+
+1. **Port conflicts**:
+
+   ```bash
+   # Check what's using ports
+   lsof -i :8080
+   ./wise-owl dev stop  # Stop services to free ports
+   ```
+
+2. **Docker permission issues**:
+
+   ```bash
+   # Add user to docker group (requires logout/login)
+   sudo usermod -aG docker $USER
+   ```
+
+3. **Services not starting**:
+
+   ```bash
+   # Check service logs
+   ./wise-owl dev logs
+
+   # Rebuild containers
+   ./wise-owl dev build
+   ```
+
+4. **Database issues**:
+
+   ```bash
+   # Clean restart with fresh database
+   ./wise-owl dev clean
+   ./wise-owl dev start
+   ```
+
+### Script Customization
+
+The scripts are designed to be extensible. Key customization points:
+
+- **`scripts/utils/common.sh`**: Shared functions and configuration
+- **Environment variables**: Override defaults through `.env.local`
+- **Docker Compose**: Modify `docker-compose.dev.yml` for development changes
+- **Service ports**: Configure in individual service Docker files
+
+## �🔧 Development Workflows
 
 ### Essential Commands
 
 ```bash
 # Service management
-./dev.sh start          # Start all services
-./dev.sh stop           # Stop all services
-./dev.sh restart        # Restart all services
-./dev.sh logs [service] # View logs
-./dev.sh build          # Rebuild containers
-./dev.sh clean          # Complete cleanup
+./wise-owl dev start          # Start all services
+./wise-owl dev stop           # Stop all services
+./wise-owl dev restart        # Restart all services
+./wise-owl dev logs [service] # View logs
+./wise-owl dev build          # Rebuild containers
+./wise-owl dev clean          # Complete cleanup
 
 # Hot reload development
-./dev-watch.sh          # Start with hot reload
+./wise-owl dev watch          # Start with hot reload
+
+# Testing and monitoring
+./wise-owl dev test           # Health check all services
+./wise-owl dev status         # Show service status
 ```
 
 ### Working with Services
