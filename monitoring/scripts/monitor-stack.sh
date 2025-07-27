@@ -32,7 +32,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Check if we're in the right directory
 check_project_root() {
-    if [ ! -f "$PROJECT_ROOT/docker-compose.yml" ]; then
+    if [ ! -f "$PROJECT_ROOT/docker-compose.dev.yml" ]; then
         print_error "Please run this script from the Wise Owl project root directory"
         exit 1
     fi

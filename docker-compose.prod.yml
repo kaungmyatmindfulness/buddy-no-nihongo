@@ -20,9 +20,10 @@ services:
   # 2. Users Service
   users-service:
     container_name: wo-users-service
-    build:
-      context: .
-      dockerfile: ./services/users/Dockerfile
+    image:
+      wo-users-service:latest
+      # context: .
+      # dockerfile: ./services/users/Dockerfile
     restart: unless-stopped
     env_file: [./.env.docker]
     environment:
@@ -38,9 +39,10 @@ services:
   # 3. Content Service
   content-service:
     container_name: wo-content-service
-    build:
-      context: .
-      dockerfile: ./services/content/Dockerfile
+    image:
+      wo-content-service:latest
+      # context: .
+      # dockerfile: ./services/content/Dockerfile
     restart: unless-stopped
     env_file: [./.env.docker]
     environment:
@@ -56,9 +58,10 @@ services:
   # 4. Quiz Service
   quiz-service:
     container_name: wo-quiz-service
-    build:
-      context: .
-      dockerfile: ./services/quiz/Dockerfile
+    image:
+      wo-quiz-service:latest
+      # context: .
+      # dockerfile: ./services/quiz/Dockerfile
     restart: unless-stopped
     env_file: [./.env.docker]
     environment:

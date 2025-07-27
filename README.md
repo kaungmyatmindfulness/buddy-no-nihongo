@@ -52,7 +52,7 @@ wise-owl-golang/
 ├── gen/                         # Generated gRPC code
 ├── nginx/                       # API Gateway configuration
 ├── docker-compose.dev.yml       # Development environment
-├── docker-compose.yml           # Production environment
+├── docker-compose.prod.yml      # Production environment
 └── go.work                      # Go workspace configuration
 ```
 

@@ -48,7 +48,7 @@ fi
 echo -e "${GREEN}"
 cat << "EOF"
  _       _____              ____          __
-| |     / (_)_______      / __ \_      _/ /
+| |     / (_)_______      / __  \_      _/ /
 | | /| / / / ___/ _ \    / / / / | /| / / / 
 | |/ |/ / (__  )  __/   / /_/ /| |/ |/ / /  
 |__/|__/_/____/\___/    \____/ |__/|__/_/   
@@ -204,100 +204,9 @@ else
 fi
 
 # ========================================
-# PHASE 3: Environment Configuration
+# PHASE 3: Prepare Dependencies and Build Services
 # ========================================
-print_info "Phase 3: Environment Configuration"
-
-print_step "Creating production environment file..."
-if [ ! -f "$INSTALL_DIR/.env.docker" ]; then
-  cat > $INSTALL_DIR/.env.docker << EOF
-# Wise Owl Production Configuration
-# Generated on: $(date)
-# Service: Japanese Vocabulary Learning Platform
-
-# MongoDB Configuration (for mongodb service initialization)
-MONGO_INITDB_ROOT_USERNAME=wiseowl_admin
-MONGO_INITDB_ROOT_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-
-# MongoDB Connection (for application services)
-MONGO_USERNAME=\${MONGO_INITDB_ROOT_USERNAME}
-MONGO_PASSWORD=\${MONGO_INITDB_ROOT_PASSWORD}
-MONGO_HOST=mongodb
-MONGO_PORT=27017
-
-# JWT Configuration for authentication
-JWT_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
-
-# Service Configuration
-SERVICE_ENV=production
-LOG_LEVEL=info
-
-# Auth0 Configuration (optional - leave empty if not using)
-AUTH0_DOMAIN=
-AUTH0_AUDIENCE=
-
-# CORS Configuration
-CORS_ALLOWED_ORIGINS=https://wise-owl.yourdomain.com
-
-# Database Names (set per service in docker-compose.yml)
-# users-service uses: DB_NAME=users_db
-# content-service uses: DB_NAME=content_db  
-# quiz-service uses: DB_NAME=quiz_db
-
-# Service Ports (internal container ports)
-USERS_HTTP_PORT=8080
-USERS_GRPC_PORT=50051
-CONTENT_HTTP_PORT=8080
-CONTENT_GRPC_PORT=50052
-QUIZ_HTTP_PORT=8080
-QUIZ_GRPC_PORT=50053
-
-# API Gateway (nginx external port)
-NGINX_PORT=8080
-EOF
-  
-  chmod 600 $INSTALL_DIR/.env.docker
-  sudo chown $DEPLOY_USER:$DEPLOY_USER $INSTALL_DIR/.env.docker
-  
-  print_warning "Environment file created at $INSTALL_DIR/.env.docker"
-  print_warning "Please update AUTH0 and domain settings if needed"
-fi
-
-# ========================================
-# PHASE 4: Production Configuration
-# ========================================
-print_info "Phase 4: Production Configuration"
-
-print_step "Creating docker-compose.prod.yml..."
-if [ ! -f "docker-compose.prod.yml" ] && [ -f "docker-compose.yml" ]; then
-  cp docker-compose.yml docker-compose.prod.yml
-  
-  # Update for production (replace build contexts with pre-built images)
-  # Update users-service
-  sed -i '/users-service:/,/depends_on:/s/build:/# build:/' docker-compose.prod.yml
-  sed -i '/users-service:/,/depends_on:/s/context: \./# context: \./' docker-compose.prod.yml
-  sed -i '/users-service:/,/depends_on:/s/dockerfile: \.\/services\/users\/Dockerfile/# dockerfile: \.\/services\/users\/Dockerfile/' docker-compose.prod.yml
-  sed -i '/users-service:/,/depends_on:/s/# build:/image: wo-users-service:latest/' docker-compose.prod.yml
-  
-  # Update content-service
-  sed -i '/content-service:/,/depends_on:/s/build:/# build:/' docker-compose.prod.yml
-  sed -i '/content-service:/,/depends_on:/s/context: \./# context: \./' docker-compose.prod.yml
-  sed -i '/content-service:/,/depends_on:/s/dockerfile: \.\/services\/content\/Dockerfile/# dockerfile: \.\/services\/content\/Dockerfile/' docker-compose.prod.yml
-  sed -i '/content-service:/,/depends_on:/s/# build:/image: wo-content-service:latest/' docker-compose.prod.yml
-  
-  # Update quiz-service
-  sed -i '/quiz-service:/,/depends_on:/s/build:/# build:/' docker-compose.prod.yml
-  sed -i '/quiz-service:/,/depends_on:/s/context: \./# context: \./' docker-compose.prod.yml
-  sed -i '/quiz-service:/,/depends_on:/s/dockerfile: \.\/services\/quiz\/Dockerfile/# dockerfile: \.\/services\/quiz\/Dockerfile/' docker-compose.prod.yml
-  sed -i '/quiz-service:/,/depends_on:/s/# build:/image: wo-quiz-service:latest/' docker-compose.prod.yml
-  
-  print_info "Created docker-compose.prod.yml with image references"
-fi
-
-# ========================================
-# PHASE 5: Prepare Dependencies and Build Services
-# ========================================
-print_info "Phase 5: Preparing Dependencies and Building Services"
+print_info "Phase 3: Preparing Dependencies and Building Services"
 
 print_step "Ensuring vendor directory exists..."
 if [ ! -d "$INSTALL_DIR/vendor" ] || [ ! -f "$INSTALL_DIR/vendor/modules.txt" ]; then
@@ -339,9 +248,9 @@ done
 # Note: nginx uses the standard nginx:stable-alpine image with custom config volume
 
 # ========================================
-# PHASE 6: Production Scripts
+# PHASE 4: Production Scripts
 # ========================================
-print_info "Phase 6: Setting up production scripts"
+print_info "Phase 4: Setting up production scripts"
 
 # Ensure scripts are executable
 chmod +x $INSTALL_DIR/*.sh 2>/dev/null || true
@@ -377,9 +286,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable wise-owl.service
 
 # ========================================
-# PHASE 7: Cron Jobs for Wise Owl
+# PHASE 5: Cron Jobs for Wise Owl
 # ========================================
-print_info "Phase 7: Setting up automated tasks"
+print_info "Phase 5: Setting up automated tasks"
 
 sudo tee /etc/cron.d/wise-owl > /dev/null << EOF
 # Wise Owl Automated Tasks
@@ -397,9 +306,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 EOF
 
 # ========================================
-# PHASE 8: Initial Data Preparation
+# PHASE 6: Initial Data Preparation
 # ========================================
-print_info "Phase 8: Data Seeding Preparation"
+print_info "Phase 6: Data Seeding Preparation"
 
 print_step "Checking for vocabulary seed data..."
 if [ -f "services/content/seed/wise-owl-vocabulary.json" ]; then
@@ -412,9 +321,9 @@ else
 fi
 
 # ========================================
-# PHASE 9: Health Check Script
+# PHASE 7: Health Check Script
 # ========================================
-print_info "Phase 9: Creating health check script"
+print_info "Phase 7: Creating health check script"
 
 cat > $INSTALL_DIR/check-wise-owl.sh << 'EOF'
 #!/bin/bash

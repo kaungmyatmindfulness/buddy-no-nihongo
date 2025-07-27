@@ -78,7 +78,7 @@ print_step "Phase 3: Docker Configuration Validation"
 
 # Check docker-compose files
 compose_files=(
-    "$PROJECT_ROOT/docker-compose.yml"
+    "$PROJECT_ROOT/docker-compose.prod.yml"
     "$PROJECT_ROOT/docker-compose.dev.yml"
     "$PROJECT_ROOT/docker-compose.monitoring.yml"
 )
@@ -91,7 +91,7 @@ for compose_file in "${compose_files[@]}"; do
         if command -v docker >/dev/null 2>&1 && [[ "$(basename "$compose_file")" != "docker-compose.monitoring.yml" ]]; then
             # Create temporary env files if needed for validation
             temp_env_files=()
-            if [[ "$(basename "$compose_file")" == "docker-compose.yml" ]] && [ ! -f ".env.docker" ]; then
+            if [[ "$(basename "$compose_file")" == "docker-compose.prod.yml" ]] && [ ! -f ".env.docker" ]; then
                 cp .env.example .env.docker
                 temp_env_files+=(".env.docker")
             elif [[ "$(basename "$compose_file")" == "docker-compose.dev.yml" ]] && [ ! -f ".env.local" ]; then

@@ -19,7 +19,7 @@ fi
 # Configuration
 BACKUP_DIR="$SCRIPT_DIR/backups"
 DATE_FORMAT=$(date +%Y%m%d_%H%M%S)
-COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.prod.yml"
 MONGODB_CONTAINER="wo-mongodb"
 RETENTION_DAYS=30
 

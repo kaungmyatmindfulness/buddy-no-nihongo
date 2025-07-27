@@ -107,7 +107,7 @@ When adding new services to the microservices architecture:
 1. Create new service directory under `services/<service-name>/`
 2. Follow the established structure pattern (see existing services as reference)
 3. Update `go.work` to include new service: `use ./services/<service-name>`
-4. Add service to `docker-compose.dev.yml` and `docker-compose.yml`
+4. Add service to `docker-compose.dev.yml` and `docker-compose.prod.yml`
 5. Add Nginx routing rules in `nginx/default.conf` for `/api/v1/<service>/`
 6. Define protobuf contracts if inter-service communication needed
 
