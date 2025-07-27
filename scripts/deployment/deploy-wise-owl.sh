@@ -2,13 +2,12 @@
 # filepath: /opt/deploy-wise-owl.sh
 # Wise Owl Deployment Script for Prepared Raspberry Pi
 # Run this after setup-raspberry-pi-generic.sh
-# Includes Japanese Vocabulary Learning Platform Microservices
+# Assumes the repository is already cloned
 
 set -e
 
 # Configuration
-WISE_OWL_REPO="git@github.com:kaungmyatmindfulness/wise-owl-nihongo-golang.git"
-INSTALL_DIR="/opt/wise-owl"
+INSTALL_DIR="$(pwd)"  # Use current directory as install directory
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 BRANCH="${BRANCH:-master}"
 GO_VERSION="1.21.5"
@@ -76,26 +75,22 @@ if ! command -v protoc &> /dev/null; then
 fi
 
 # ========================================
-# PHASE 1: Repository Setup
+# PHASE 1: Directory Setup
 # ========================================
-print_info "Phase 1: Repository Setup"
+print_info "Phase 1: Directory Setup"
 
 print_step "Creating Wise Owl directories..."
 sudo mkdir -p $INSTALL_DIR/{backups,logs,data}
 sudo chown -R $DEPLOY_USER:$DEPLOY_USER $INSTALL_DIR
 
-print_step "Cloning Wise Owl repository..."
-if [ ! -d "$INSTALL_DIR/.git" ]; then
-  $RUN_AS git clone -b $BRANCH $WISE_OWL_REPO $INSTALL_DIR
-else
-  print_info "Repository exists, pulling latest changes..."
-  cd $INSTALL_DIR
-  $RUN_AS git fetch origin
-  $RUN_AS git checkout $BRANCH
-  $RUN_AS git pull origin $BRANCH
+# Verify repository
+if [ ! -f "go.work" ]; then
+  print_error "This doesn't appear to be a Wise Owl repository (no go.work file found)"
+  print_error "Please run this script from the root of the cloned repository"
+  exit 1
 fi
 
-cd $INSTALL_DIR
+print_info "Using existing repository in $INSTALL_DIR"
 
 # ========================================
 # PHASE 2: Proto Generation
@@ -468,7 +463,7 @@ print_info "Wise Owl Deployment Complete!"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${GREEN}=== Summary ===${NC}"
-echo "✅ Repository cloned and configured"
+echo "✅ Using existing repository in $INSTALL_DIR"
 echo "✅ Protocol buffers generated using Docker"
 echo "✅ Production environment configured"  
 echo "✅ Docker services built for ARM64"
@@ -478,8 +473,6 @@ echo "✅ Health monitoring configured"
 echo ""
 
 echo -e "${YELLOW}=== Deployment Summary ===${NC}"
-echo "Repository: $WISE_OWL_REPO"
-echo "Branch: $BRANCH"
 echo "Install Dir: $INSTALL_DIR"
 echo "Service User: $DEPLOY_USER"
 echo ""
