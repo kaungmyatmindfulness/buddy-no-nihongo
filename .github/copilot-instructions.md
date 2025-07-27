@@ -23,7 +23,6 @@ This is a **Japanese vocabulary learning platform** built as microservices with 
 ```bash
 ./scripts/dev.sh start          # Start all services in development mode
 ./scripts/dev-watch.sh          # Start with hot reload (requires Docker Compose 2.22+)
-./scripts/generate-service.sh   # Create new service from template
 ./scripts/test-dev.sh           # Quick health check of all services
 ```
 
@@ -94,11 +93,14 @@ services/{name}/
 
 ### Adding New Services
 
-1. Run `./scripts/generate-service.sh <service-name>`
-2. Update `go.work` to include new service: `use ./services/<service-name>`
-3. Add service to `docker-compose.dev.yml` and `docker-compose.yml`
-4. Add Nginx routing rules in `nginx/default.conf` for `/api/v1/<service>/`
-5. Define protobuf contracts if inter-service communication needed
+When adding new services to the microservices architecture:
+
+1. Create new service directory under `services/<service-name>/`
+2. Follow the established structure pattern (see existing services as reference)
+3. Update `go.work` to include new service: `use ./services/<service-name>`
+4. Add service to `docker-compose.dev.yml` and `docker-compose.yml`
+5. Add Nginx routing rules in `nginx/default.conf` for `/api/v1/<service>/`
+6. Define protobuf contracts if inter-service communication needed
 
 ### Testing & Debugging
 
@@ -112,8 +114,8 @@ services/{name}/
 
 - `lib/config/config.go` - Centralized configuration pattern
 - `lib/auth/middleware.go` - JWT validation implementation
-- `templates/service-template/cmd/main.go` - Service template structure
 - `services/content/cmd/main.go` - Example dual-server implementation
 - `nginx/default.conf` - API Gateway routing configuration
 - `proto/content/content.proto` - Example gRPC service definition
+- `docker-compose.dev.yml` - Development environment with hot reload
 - `docker-compose.dev.yml` - Development environment with hot reload

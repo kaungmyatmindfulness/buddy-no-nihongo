@@ -51,7 +51,6 @@ wise-owl-golang/
 ├── proto/                       # Protocol Buffer definitions
 ├── gen/                         # Generated gRPC code
 ├── nginx/                       # API Gateway configuration
-├── templates/                   # Service generation templates
 ├── docker-compose.dev.yml       # Development environment
 ├── docker-compose.yml           # Production environment
 └── go.work                      # Go workspace configuration
@@ -142,9 +141,6 @@ docker-compose up -d
 
 # Hot reload development
 ./dev-watch.sh          # Start with hot reload
-
-# Service generation
-./generate-service.sh notifications  # Create new service
 ```
 
 ### Working with Services
@@ -285,10 +281,15 @@ services/{name}/
 
 ## 🔄 Adding New Services
 
-1. **Generate Service Template**
+1. **Create Service Structure**
 
    ```bash
-   ./generate-service.sh notifications
+   # Create service directory following existing pattern
+   mkdir -p services/notifications/{cmd,internal/{handlers,models,grpc,seeder}}
+
+   # Create go.mod for the service
+   cd services/notifications
+   go mod init wise-owl/services/notifications
    ```
 
 2. **Update Configuration**
@@ -305,6 +306,7 @@ services/{name}/
 
    ```bash
    cd services/notifications
+   # Create cmd/main.go following existing service patterns
    # Edit internal/handlers/, internal/models/, etc.
    ```
 
@@ -319,8 +321,7 @@ services/{name}/
 
 ### Development Guidelines
 
-- Use the provided service template for consistency
-- Follow the established patterns in existing services
+- Follow the established patterns in existing services (see `services/content` as reference)
 - Write tests for new functionality
 - Update documentation for API changes
 - Use conventional commit messages
@@ -347,8 +348,8 @@ This project is licensed under the MIT License. See LICENSE file for details.
 ## 🆘 Support & Resources
 
 - **Issues**: Create GitHub issues for bugs or feature requests
-- **Development Setup**: Use `./dev.sh` commands for consistent environment
-- **Service Templates**: Use `./generate-service.sh` for new services
+- **Development Setup**: Use `./scripts/dev.sh` commands for consistent environment
+- **Service Reference**: Use existing services like `content` as patterns for new services
 - **Health Monitoring**: All services provide `/health` and `/health/ready` endpoints
 
 ---

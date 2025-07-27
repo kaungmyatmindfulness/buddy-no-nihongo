@@ -258,9 +258,6 @@ proto-gen-local.sh
 services/*/local.yml
 services/*/.env.local
 
-# Air config overrides for individual services
-services/*/.air.toml
-
 # Local development overrides
 local-*
 *-local.*
