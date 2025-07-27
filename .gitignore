@@ -273,3 +273,5 @@ local-*
 # Script logs and temporary files
 scripts/**/*.log
 scripts/**/tmp/
+
+.cache/
