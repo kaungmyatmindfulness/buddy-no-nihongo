@@ -10,7 +10,7 @@ set -e
 INSTALL_DIR="$(pwd)"  # Use current directory as install directory
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 BRANCH="${BRANCH:-master}"
-GO_VERSION="1.21.5"
+GO_VERSION="1.22.5"
 
 # Colors
 GREEN='\033[0;32m'
@@ -137,7 +137,7 @@ else
     print_step "Found proto files, generating with Docker..."
     
     # Run proto generation directly in Docker without separate script
-    $RUN_AS docker run --rm \
+    if $RUN_AS docker run --rm \
       -v "$INSTALL_DIR:/workspace" \
       -w /workspace \
       -u "$(id -u):$(id -g)" \
@@ -159,15 +159,19 @@ else
         echo \"\$proto_files\"
         
         # Install protoc and Go plugins
-        apk add --no-cache protobuf-dev
+        echo 'Installing protoc and dependencies...'
+        apk add --no-cache protobuf-dev >/dev/null 2>&1
+        
+        echo 'Installing Go protobuf plugins...'
         go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
         
         export PATH=\$PATH:\$(go env GOPATH)/bin
         
         # Generate for each proto file
+        echo 'Generating Go code from proto files...'
         for proto_file in \$proto_files; do
-          echo \"Generating for: \$proto_file\"
+          echo \"Processing: \$proto_file\"
           
           # Generate Go files
           protoc \
@@ -179,10 +183,21 @@ else
             \"\$proto_file\"
         done
         
-        echo 'Proto generation completed'
-      "
-    
-    print_info "Proto files generated successfully"
+        echo 'Proto generation completed successfully'
+        
+        # List generated files
+        generated_files=\$(find . -name '*.pb.go' -type f)
+        if [ -n \"\$generated_files\" ]; then
+          echo 'Generated files:'
+          echo \"\$generated_files\"
+        fi
+      "; then
+      print_info "Proto files generated successfully"
+    else
+      print_error "Proto generation failed! Please check the logs above."
+      print_error "This might be due to Go version compatibility or network issues."
+      exit 1
+    fi
   else
     print_warning "No proto files or Makefile proto target found, skipping proto generation"
   fi
