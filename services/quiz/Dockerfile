@@ -1,19 +1,28 @@
 # =================================================================
 # Stage 1: The Builder Stage
 # =================================================================
-FROM golang:1.24-alpine AS builder
+FROM golang:1.22.5-alpine AS builder
 
 # Set the working directory inside the container.
 WORKDIR /app
 
 # Copy dependency-related files from the project root.
-# `go work sync` should be run before the build to ensure these files exist.
 COPY go.work go.work.sum ./
-COPY vendor ./vendor
 
 # Copy all source code from the project root.
 COPY lib ./lib
 COPY services ./services
+COPY gen ./gen
+
+# Try to copy vendor directory, but continue if it doesn't exist
+COPY vendor ./vendor
+
+# If vendor doesn't exist or is incomplete, download dependencies
+RUN if [ ! -f "vendor/modules.txt" ]; then \
+        echo "Vendor directory incomplete, downloading dependencies..." && \
+        go mod download && \
+        go work vendor; \
+    fi
 
 # Build the specific service binary.
 # The `-ldflags "-w -s"` strips debug information, making the binary smaller.

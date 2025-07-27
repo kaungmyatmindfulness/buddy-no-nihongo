@@ -295,9 +295,32 @@ if [ ! -f "docker-compose.prod.yml" ] && [ -f "docker-compose.yml" ]; then
 fi
 
 # ========================================
-# PHASE 5: Build Services
+# PHASE 5: Prepare Dependencies and Build Services
 # ========================================
-print_info "Phase 5: Building Wise Owl Services"
+print_info "Phase 5: Preparing Dependencies and Building Services"
+
+print_step "Ensuring vendor directory exists..."
+if [ ! -d "$INSTALL_DIR/vendor" ] || [ ! -f "$INSTALL_DIR/vendor/modules.txt" ]; then
+  print_step "Creating vendor directory..."
+  $RUN_AS docker run --rm \
+    -v "$INSTALL_DIR:/workspace" \
+    -w /workspace \
+    -u "$(id -u):$(id -g)" \
+    -e GOCACHE=/tmp/.gocache \
+    -e GOMODCACHE=/tmp/.gomodcache \
+    golang:${GO_VERSION}-alpine \
+    sh -c "
+      set -e
+      echo 'Downloading Go dependencies...'
+      go mod download
+      echo 'Creating vendor directory...'
+      go work vendor
+      echo 'Vendor directory created successfully'
+    "
+  print_info "Vendor directory created successfully"
+else
+  print_info "Vendor directory already exists"
+fi
 
 print_step "Building services for ARM64..."
 services=("users" "content" "quiz")
