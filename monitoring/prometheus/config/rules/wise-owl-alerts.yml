@@ -1,0 +1,152 @@
+groups:
+  - name: wise-owl-system
+    rules:
+      # System Resource Alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage is above 80% (current value: {{ $value }}%)"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage detected on {{ $labels.instance }}"
+          description: "Memory usage is above 85% (current value: {{ $value }}%)"
+
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "High disk usage detected on {{ $labels.instance }}"
+          description: "Disk usage is above 90% (current value: {{ $value }}%)"
+
+      - alert: SystemLoadHigh
+        expr: node_load15 > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High system load on {{ $labels.instance }}"
+          description: "15-minute load average is {{ $value }}"
+
+  - name: wise-owl-containers
+    rules:
+      # Container Health Alerts
+      - alert: ContainerDown
+        expr: up{job="wise-owl-services"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Container {{ $labels.instance }} is down"
+          description: "Container {{ $labels.instance }} has been down for more than 1 minute"
+
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total{name=~"wo-.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "High CPU usage in container {{ $labels.name }}"
+          description: "Container {{ $labels.name }} CPU usage is above 80%"
+
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes{name=~"wo-.*"} / container_spec_memory_limit_bytes{name=~"wo-.*"}) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "High memory usage in container {{ $labels.name }}"
+          description: "Container {{ $labels.name }} memory usage is above 90% of limit"
+
+      - alert: ContainerRestarting
+        expr: rate(container_last_seen{name=~"wo-.*"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "Container {{ $labels.name }} is restarting"
+          description: "Container {{ $labels.name }} has restarted"
+
+  - name: wise-owl-services
+    rules:
+      # Service-specific alerts
+      - alert: ServiceHighResponseTime
+        expr: http_request_duration_seconds{quantile="0.95"} > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High response time for {{ $labels.service }}"
+          description: "95th percentile response time is {{ $value }}s"
+
+      - alert: ServiceHighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High error rate for {{ $labels.service }}"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: MongoDBDown
+        expr: up{job="mongodb"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: mongodb
+        annotations:
+          summary: "MongoDB is down"
+          description: "MongoDB has been down for more than 1 minute"
+
+      - alert: MongoDBHighConnections
+        expr: mongodb_connections{state="current"} > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: mongodb
+        annotations:
+          summary: "MongoDB high connection count"
+          description: "MongoDB has {{ $value }} active connections"
+
+  - name: wise-owl-business
+    rules:
+      # Business logic alerts
+      - alert: HighQuizFailureRate
+        expr: rate(quiz_attempts_total{result="failed"}[10m]) / rate(quiz_attempts_total[10m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: quiz
+        annotations:
+          summary: "High quiz failure rate"
+          description: "Quiz failure rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+      - alert: ContentServiceSlowResponse
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service="content"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: content
+        annotations:
+          summary: "Content service slow response"
+          description: "95th percentile response time is {{ $value }}s"

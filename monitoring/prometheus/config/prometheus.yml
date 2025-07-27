@@ -1,0 +1,104 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: "wise-owl-monitor"
+    cluster: "wise-owl-production"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+rule_files:
+  - "rules/*.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Node Exporter for system metrics
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # cAdvisor for container metrics
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # MongoDB Exporter
+  - job_name: "mongodb"
+    static_configs:
+      - targets: ["mongodb-exporter:9216"]
+    scrape_interval: 30s
+
+  # Wise Owl Services with Docker service discovery
+  - job_name: "wise-owl-services"
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 30s
+    relabel_configs:
+      # Only scrape containers with prometheus.io/scrape=true label
+      - source_labels: [__meta_docker_container_label_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+      # Use custom metrics path if specified
+      - source_labels: [__meta_docker_container_label_prometheus_io_path]
+        target_label: __metrics_path__
+        regex: (.+)
+
+      # Use custom port if specified, otherwise use default
+      - source_labels:
+          [__address__, __meta_docker_container_label_prometheus_io_port]
+        target_label: __address__
+        regex: ([^:]+):(\d+);(\d+)
+        replacement: ${1}:${3}
+
+      # Set service name from container name
+      - source_labels: [__meta_docker_container_name]
+        target_label: service
+        regex: /(.*)-service
+        replacement: ${1}
+
+      # Set instance name from container name
+      - source_labels: [__meta_docker_container_name]
+        target_label: instance
+        regex: /(.*)
+        replacement: ${1}
+
+  # Nginx metrics (if nginx-prometheus-exporter is added)
+  - job_name: "nginx"
+    static_configs:
+      - targets: ["nginx:9113"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Grafana metrics
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+    scrape_interval: 60s
+    metrics_path: /metrics
+
+  # Jaeger metrics
+  - job_name: "jaeger"
+    static_configs:
+      - targets: ["jaeger:14269"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Loki metrics
+  - job_name: "loki"
+    static_configs:
+      - targets: ["loki:3100"]
+    scrape_interval: 30s
+    metrics_path: /metrics

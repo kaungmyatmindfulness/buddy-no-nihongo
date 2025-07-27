@@ -48,10 +48,12 @@ build/
 .env.production
 .env.staging
 .env.docker
+.env.monitoring
 
 # Keep example files
 !.env.example
 !.env.local.example
+!.env.monitoring.example
 
 # ==============================================================================
 # Docker & Containerization
@@ -81,6 +83,12 @@ mongodb-data/
 backups/*.gz
 backups/*.tar
 backups/*.zip
+
+# Monitoring data (keep configs)
+monitoring/prometheus/data/
+monitoring/grafana/data/
+monitoring/loki/data/
+monitoring/alertmanager/data/
 
 # ==============================================================================
 # Logs & Monitoring

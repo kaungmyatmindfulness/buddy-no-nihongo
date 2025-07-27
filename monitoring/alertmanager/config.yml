@@ -1,0 +1,61 @@
+global:
+  smtp_smarthost: "localhost:587"
+  smtp_from: "alerts@wise-owl.local"
+  smtp_auth_username: ""
+  smtp_auth_password: ""
+
+templates:
+  - "/etc/alertmanager/templates/*.tmpl"
+
+route:
+  group_by: ["alertname", "service"]
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: "default-receiver"
+  routes:
+    - match:
+        severity: critical
+      receiver: "critical-alerts"
+      continue: true
+    - match:
+        service: system
+      receiver: "system-alerts"
+    - match:
+        service: mongodb
+      receiver: "database-alerts"
+
+receivers:
+  - name: "default-receiver"
+    webhook_configs:
+      - url: "http://localhost:3000/api/v1/alerts"
+        send_resolved: true
+
+  - name: "critical-alerts"
+    slack_configs:
+      - api_url: "YOUR_SLACK_WEBHOOK_URL"
+        channel: "#alerts-critical"
+        title: "🚨 Critical Alert - Wise Owl"
+        text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+        send_resolved: true
+
+  - name: "system-alerts"
+    slack_configs:
+      - api_url: "YOUR_SLACK_WEBHOOK_URL"
+        channel: "#alerts-system"
+        title: "⚠️ System Alert - Wise Owl"
+        text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+
+  - name: "database-alerts"
+    slack_configs:
+      - api_url: "YOUR_SLACK_WEBHOOK_URL"
+        channel: "#alerts-database"
+        title: "🗄️ Database Alert - Wise Owl"
+        text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+
+inhibit_rules:
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname", "service"]

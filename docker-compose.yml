@@ -6,10 +6,16 @@ services:
     restart: unless-stopped
     ports: ["8080:80"]
     volumes: ["./nginx:/etc/nginx/conf.d:ro"]
+    networks:
+      - wise-owl-network
     depends_on:
       - users-service
       - content-service
       - quiz-service
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=80"
+      - "prometheus.io/path=/nginx_status"
 
   # 2. Users Service
   users-service:
@@ -21,7 +27,13 @@ services:
     env_file: [./.env.docker]
     environment:
       - DB_NAME=users_db
+    networks:
+      - wise-owl-network
     depends_on: [mongodb]
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8080"
+      - "prometheus.io/path=/health/metrics"
 
   # 3. Content Service
   content-service:
@@ -33,7 +45,13 @@ services:
     env_file: [./.env.docker]
     environment:
       - DB_NAME=content_db
+    networks:
+      - wise-owl-network
     depends_on: [mongodb]
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8080"
+      - "prometheus.io/path=/health/metrics"
 
   # 4. Quiz Service
   quiz-service:
@@ -45,7 +63,13 @@ services:
     env_file: [./.env.docker]
     environment:
       - DB_NAME=quiz_db
+    networks:
+      - wise-owl-network
     depends_on: [mongodb]
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8080"
+      - "prometheus.io/path=/health/metrics"
 
   # 5. MongoDB Database
   mongodb:
@@ -55,6 +79,15 @@ services:
     env_file: [./.env.docker] # Injects MONGO_INITDB_ROOT_USERNAME/PASSWORD
     ports: ["27017:27017"]
     volumes: ["mongo_data:/data/db"]
+    networks:
+      - wise-owl-network
+    labels:
+      - "prometheus.io/scrape=false"
 
 volumes:
   mongo_data:
+
+networks:
+  wise-owl-network:
+    driver: bridge
+    name: wise-owl-network

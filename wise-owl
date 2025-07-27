@@ -18,6 +18,7 @@ print_usage() {
     echo "Categories:"
     echo "  dev, development   - Development environment management"
     echo "  deploy, deployment - Production deployment scripts"
+    echo "  monitor, monitoring - Monitoring stack management"
     echo ""
     echo "Development Commands:"
     echo "  ./wise-owl dev setup     - Initial development setup"
@@ -29,6 +30,15 @@ print_usage() {
     echo "  ./wise-owl dev status    - Show service status"
     echo "  ./wise-owl dev clean     - Clean up containers and volumes"
     echo ""
+    echo "Monitoring Commands:"
+    echo "  ./wise-owl monitor start    - Start monitoring stack"
+    echo "  ./wise-owl monitor stop     - Stop monitoring stack"
+    echo "  ./wise-owl monitor status   - Show monitoring status"
+    echo "  ./wise-owl monitor logs     - View monitoring logs"
+    echo "  ./wise-owl monitor health   - Check service health"
+    echo "  ./wise-owl monitor urls     - Show dashboard URLs"
+    echo "  ./wise-owl monitor system   - System monitoring info"
+    echo ""
     echo "Deployment Commands:"
     echo "  ./wise-owl deploy setup  - Setup production server"
     echo "  ./wise-owl deploy app    - Deploy Wise Owl application"
@@ -37,6 +47,8 @@ print_usage() {
     echo "  scripts/development/dev.sh         - Development management"
     echo "  scripts/development/dev-watch.sh   - Hot reload development"
     echo "  scripts/development/test-dev.sh    - Health check tests"
+    echo "  monitoring/scripts/monitor-stack.sh - Monitoring management"
+    echo "  monitoring/scripts/system-monitor.sh - System monitoring"
     echo "  scripts/deployment/setup-raspberry-pi-generic.sh - Server setup"
     echo "  scripts/deployment/deploy-wise-owl.sh           - App deployment"
 }
@@ -53,6 +65,17 @@ case "$1" in
                 ;;
             *)
                 exec "$SCRIPT_DIR/scripts/development/dev.sh" "${@:2}"
+                ;;
+        esac
+        ;;
+    
+    "monitor"|"monitoring")
+        case "$2" in
+            "system")
+                exec "$SCRIPT_DIR/monitoring/scripts/system-monitor.sh" "${@:3}"
+                ;;
+            *)
+                exec "$SCRIPT_DIR/monitoring/scripts/monitor-stack.sh" "${@:2}"
                 ;;
         esac
         ;;

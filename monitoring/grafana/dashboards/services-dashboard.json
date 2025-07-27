@@ -1,0 +1,138 @@
+{
+	"dashboard": {
+		"id": null,
+		"uid": "wise-owl-services",
+		"title": "Wise Owl - Services Dashboard",
+		"tags": ["wise-owl", "services", "microservices"],
+		"timezone": "browser",
+		"panels": [
+			{
+				"id": 1,
+				"title": "Service Response Times",
+				"type": "timeseries",
+				"gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+				"targets": [
+					{
+						"expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"wise-owl-services\"}[5m]))",
+						"legendFormat": "{{service}} - 95th percentile",
+						"refId": "A"
+					},
+					{
+						"expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"wise-owl-services\"}[5m]))",
+						"legendFormat": "{{service}} - 50th percentile",
+						"refId": "B"
+					}
+				],
+				"fieldConfig": {
+					"defaults": {
+						"unit": "s"
+					}
+				}
+			},
+			{
+				"id": 2,
+				"title": "Request Rate",
+				"type": "timeseries",
+				"gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+				"targets": [
+					{
+						"expr": "rate(http_requests_total{job=\"wise-owl-services\"}[5m])",
+						"legendFormat": "{{service}} - {{method}}",
+						"refId": "A"
+					}
+				],
+				"fieldConfig": {
+					"defaults": {
+						"unit": "reqps"
+					}
+				}
+			},
+			{
+				"id": 3,
+				"title": "Error Rate",
+				"type": "timeseries",
+				"gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+				"targets": [
+					{
+						"expr": "rate(http_requests_total{job=\"wise-owl-services\",status=~\"5..\"}[5m]) / rate(http_requests_total{job=\"wise-owl-services\"}[5m])",
+						"legendFormat": "{{service}} - Error Rate",
+						"refId": "A"
+					}
+				],
+				"fieldConfig": {
+					"defaults": {
+						"unit": "percentunit",
+						"min": 0,
+						"max": 1
+					}
+				}
+			},
+			{
+				"id": 4,
+				"title": "Container Resource Usage",
+				"type": "timeseries",
+				"gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+				"targets": [
+					{
+						"expr": "rate(container_cpu_usage_seconds_total{name=~\"wo-.*\"}[5m]) * 100",
+						"legendFormat": "{{name}} - CPU %",
+						"refId": "A"
+					},
+					{
+						"expr": "(container_memory_usage_bytes{name=~\"wo-.*\"} / container_spec_memory_limit_bytes{name=~\"wo-.*\"}) * 100",
+						"legendFormat": "{{name}} - Memory %",
+						"refId": "B"
+					}
+				],
+				"fieldConfig": {
+					"defaults": {
+						"unit": "percent"
+					}
+				}
+			},
+			{
+				"id": 5,
+				"title": "MongoDB Metrics",
+				"type": "timeseries",
+				"gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+				"targets": [
+					{
+						"expr": "mongodb_connections{state=\"current\"}",
+						"legendFormat": "Current Connections",
+						"refId": "A"
+					},
+					{
+						"expr": "rate(mongodb_op_counters_total[5m])",
+						"legendFormat": "{{type}} ops/sec",
+						"refId": "B"
+					}
+				]
+			},
+			{
+				"id": 6,
+				"title": "Quiz Service Metrics",
+				"type": "timeseries",
+				"gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+				"targets": [
+					{
+						"expr": "rate(quiz_attempts_total[5m])",
+						"legendFormat": "Quiz Attempts/sec",
+						"refId": "A"
+					},
+					{
+						"expr": "rate(quiz_attempts_total{result=\"failed\"}[5m]) / rate(quiz_attempts_total[5m])",
+						"legendFormat": "Failure Rate",
+						"refId": "B"
+					}
+				]
+			}
+		],
+		"time": {
+			"from": "now-1h",
+			"to": "now"
+		},
+		"refresh": "30s",
+		"schemaVersion": 30,
+		"version": 1
+	}
+}
