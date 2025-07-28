@@ -1311,7 +1311,7 @@ echo "✅ Uptime Kuma monitoring ready"
 echo "✅ Cloudflare Tunnel configured (Docker-based)"
 echo "✅ Backup system configured"
 echo ""
-
+ 
 echo -e "${YELLOW}=== Monitoring Access ===${NC}"
 echo "Grafana: http://$(hostname -I | awk '{print $1}'):3000"
 echo "  Username: admin"
