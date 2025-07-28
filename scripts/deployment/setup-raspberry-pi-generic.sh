@@ -897,8 +897,6 @@ chown $CURRENT_USER:$CURRENT_USER /opt/cloudflared
 
 # Create Cloudflare Tunnel docker-compose
 cat > /opt/cloudflared/docker-compose.yml << EOF
-version: '3.8'
-
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -910,8 +908,6 @@ services:
       - ./credentials.json:/etc/cloudflared/credentials.json:ro
     networks:
       - web
-    depends_on:
-      - traefik
     labels:
       - "prometheus.io/scrape=true"
       - "prometheus.io/port=2000"
