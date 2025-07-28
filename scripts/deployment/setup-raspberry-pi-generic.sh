@@ -85,15 +85,6 @@ apt install -y \
 print_info "Phase 2: User Setup"
 
 print_info "Using current user: $CURRENT_USER"
-print_info "Ensuring user is in docker group..."
-
-# Add current user to docker group (will take effect after next login)
-if id "$CURRENT_USER" &>/dev/null; then
-  usermod -aG docker "$CURRENT_USER"
-  print_info "User '$CURRENT_USER' added to docker group"
-else
-  print_warning "Could not find user '$CURRENT_USER'. Make sure to add your user to docker group manually."
-fi
 
 print_step "SSH key setup..."
 print_info "To set up SSH key authentication for user '$CURRENT_USER':"
@@ -196,6 +187,16 @@ cat > /etc/docker/daemon.json << EOF
 EOF
 
 systemctl restart docker
+
+print_step "Adding user to docker group..."
+# Add current user to docker group (will take effect after next login)
+if id "$CURRENT_USER" &>/dev/null; then
+  usermod -aG docker "$CURRENT_USER"
+  print_info "User '$CURRENT_USER' added to docker group"
+  print_warning "Please log out and log back in for docker group changes to take effect"
+else
+  print_warning "Could not find user '$CURRENT_USER'. Make sure to add your user to docker group manually."
+fi
 
 # ========================================
 # PHASE 5: Docker Networks
