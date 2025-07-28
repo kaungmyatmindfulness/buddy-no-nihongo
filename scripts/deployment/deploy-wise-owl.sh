@@ -322,115 +322,6 @@ EOF
 fi
 
 # ========================================
-# PHASE 5: Cron Jobs for Wise Owl
-# ========================================
-print_info "Phase 5: Setting up automated tasks"
-
-if [ "$IS_MAC" = true ]; then
-  print_warning "Skipping cron job setup on macOS"
-  print_info "Consider setting up automated tasks manually using launchd or cron"
-else
-  sudo tee /etc/cron.d/wise-owl > /dev/null << EOF
-# Wise Owl Automated Tasks
-SHELL=/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-
-# Daily backup at 2 AM (includes all MongoDB databases)
-0 2 * * * $CURRENT_USER cd $INSTALL_DIR && ./backup-prod.sh create >> $INSTALL_DIR/logs/backup.log 2>&1
-
-# Weekly cleanup on Sunday at 3 AM
-0 3 * * 0 root docker system prune -af >> $INSTALL_DIR/logs/cleanup.log 2>&1
-
-# Monitor vocabulary seeding completion (runs every 5 minutes for first day)
-*/5 * * * * $CURRENT_USER cd $INSTALL_DIR && docker compose -f docker-compose.prod.yml logs wo-content-service | grep -q "Seeding completed successfully" && touch $INSTALL_DIR/.seeding-complete 2>&1
-EOF
-fi
-
-# ========================================
-# PHASE 6: Initial Data Preparation
-# ========================================
-print_info "Phase 6: Data Seeding Preparation"
-
-print_step "Checking for vocabulary seed data..."
-if [ -f "services/content/seed/wise-owl-vocabulary.json" ]; then
-  vocab_count=$(jq '. | length' services/content/seed/wise-owl-vocabulary.json 2>/dev/null || echo "unknown")
-  print_info "Found vocabulary data with $vocab_count entries"
-  print_info "Content service will automatically seed on first startup"
-else
-  print_warning "Vocabulary seed data not found"
-  print_warning "Ensure services/content/seed/wise-owl-vocabulary.json exists"
-fi
-
-# ========================================
-# PHASE 7: Health Check Script
-# ========================================
-print_info "Phase 7: Creating health check script"
-
-cat > $INSTALL_DIR/check-wise-owl.sh << 'EOF'
-#!/bin/bash
-# Wise Owl Health Check Script
-
-echo "🦉 Wise Owl Health Status"
-echo "========================"
-echo ""
-
-# Check services
-services=("wo-nginx:8080:/health" "wo-users-service:internal" "wo-content-service:internal" "wo-quiz-service:internal")
-
-for service_info in "${services[@]}"; do
-  IFS=':' read -r container port endpoint <<< "$service_info"
-  
-  echo -n "Checking $container... "
-  
-  if docker ps --format "{{.Names}}" | grep -q "^$container$"; then
-    if [ "$port" = "internal" ]; then
-      # For internal services, just check if container is running and healthy
-      if docker inspect "$container" --format='{{.State.Status}}' | grep -q "running"; then
-        echo "✅ Running"
-      else
-        echo "❌ Not running properly"
-      fi
-    else
-      # For nginx, check HTTP endpoint
-      if curl -s "http://localhost:$port$endpoint" > /dev/null 2>&1; then
-        echo "✅ Running and responding"
-      else
-        echo "⚠️  Running but not responding on $port$endpoint"
-      fi
-    fi
-  else
-    echo "❌ Not running"
-  fi
-done
-
-echo ""
-echo "MongoDB Status:"
-if docker ps --format "{{.Names}}" | grep -q "^wo-mongodb$"; then
-  if docker exec wo-mongodb mongosh --quiet --eval "db.adminCommand('ping')" &>/dev/null; then
-    echo "✅ MongoDB responsive"
-  else
-    echo "⚠️  MongoDB running but not responding"
-  fi
-else
-  echo "❌ MongoDB not running"
-fi
-
-echo ""
-echo "Vocabulary Data Status:"
-if [ -f "$INSTALL_DIR/.seeding-complete" ]; then
-  echo "✅ Vocabulary seeding completed"
-else
-  echo "⏳ Vocabulary seeding in progress or pending"
-fi
-
-echo ""
-echo "Container Status Summary:"
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" --filter "name=wo-"
-EOF
-
-chmod +x $INSTALL_DIR/check-wise-owl.sh
-
-# ========================================
 # COMPLETION
 # ========================================
 echo ""
@@ -449,12 +340,9 @@ fi
 echo "✅ Docker services built for ARM64"
 if [ "$IS_MAC" = true ]; then
   echo "⚠️  Systemd service skipped (macOS)"
-  echo "⚠️  Automated tasks skipped (macOS)"
 else
   echo "✅ Systemd service configured"
-  echo "✅ Automated tasks scheduled"
 fi
-echo "✅ Health monitoring configured"
 echo ""
 
 echo -e "${YELLOW}=== Deployment Summary ===${NC}"
@@ -482,7 +370,6 @@ echo ""
 echo -e "${BLUE}=== Monitoring ===${NC}"
 echo "- Check status: docker compose -f docker-compose.prod.yml ps"
 echo "- View logs: docker compose -f docker-compose.prod.yml logs [service-name]"
-echo "- Health check: ./check-wise-owl.sh"
 echo ""
 
 echo -e "${YELLOW}=== Access Points ===${NC}"
@@ -500,11 +387,8 @@ fi
 echo ""
 
 echo -e "${GREEN}=== Important Notes ===${NC}"
-echo "1. Content service will seed vocabulary entries on first start"
-echo "2. Initial seeding may take 5-10 minutes"
-echo "3. Check seeding progress: docker compose -f docker-compose.prod.yml logs wo-content-service"
-echo "4. Update .env.docker with your Auth0 credentials if using authentication"
-echo "5. Nginx config should be placed in ./nginx/ directory"
+echo "1. Update .env.docker with your Auth0 credentials if using authentication"
+echo "2. Nginx config should be placed in ./nginx/ directory"
 echo ""
 
 echo -e "${BLUE}=== Next Steps ===${NC}"
@@ -512,14 +396,11 @@ if [ "$IS_MAC" = true ]; then
   echo "1. Ensure .env.docker file exists with proper configuration"
   echo "2. Ensure nginx configuration exists in ./nginx/ directory"
   echo "3. Start the services: docker compose -f docker-compose.prod.yml up -d"
-  echo "4. Monitor initial vocabulary seeding"
-  echo "5. Set up automated tasks manually if needed"
 else
   echo "1. Review and update $INSTALL_DIR/.env.docker"
   echo "2. Ensure nginx configuration exists in ./nginx/ directory"
   echo "3. Start the services: sudo systemctl start wise-owl"
-  echo "4. Monitor initial vocabulary seeding"
-  echo "5. Set up CI/CD with GitHub Actions"
+  echo "4. Set up CI/CD with GitHub Actions"
 fi
 echo ""
 
