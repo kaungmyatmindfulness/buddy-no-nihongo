@@ -1,6 +1,6 @@
 module wise-owl/gen
 
-go 1.24.4
+go 1.24.5
 
 require (
 	google.golang.org/grpc v1.73.0

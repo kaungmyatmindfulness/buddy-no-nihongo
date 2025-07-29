@@ -1,6 +1,6 @@
 module wise-owl/lib
 
-go 1.24.4
+go 1.24.5
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.3.0
