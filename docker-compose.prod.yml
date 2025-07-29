@@ -1,5 +1,4 @@
 services:
-  # 1. Nginx: The API Gateway
   nginx:
     image: nginx:stable-alpine
     container_name: wo-nginx
@@ -12,83 +11,39 @@ services:
       - users-service
       - content-service
       - quiz-service
-    # labels:
-    #   - "prometheus.io/scrape=true"
-    #   - "prometheus.io/port=80"
-    #   - "prometheus.io/path=/nginx_status"
 
-  # 2. Users Service
   users-service:
     container_name: wo-users-service
     image: wo-users-service:latest
-    # build:
-    #   context: .
-    #   dockerfile: ./services/users/Dockerfile
     restart: unless-stopped
-    env_file: [./.env.docker]
+    env_file: [./.env.production]
     environment:
       - DB_NAME=users_db
+      - DB_TYPE=documentdb
     networks:
       - wise-owl-network
-    depends_on: [mongodb]
-    # labels:
-    #   - "prometheus.io/scrape=true"
-    #   - "prometheus.io/port=8080"
-    #   - "prometheus.io/path=/health/metrics"
 
-  # 3. Content Service
   content-service:
     container_name: wo-content-service
     image: wo-content-service:latest
-    # build:
-    #   context: .
-    #   dockerfile: ./services/content/Dockerfile
     restart: unless-stopped
-    env_file: [./.env.docker]
+    env_file: [./.env.production]
     environment:
       - DB_NAME=content_db
+      - DB_TYPE=documentdb
     networks:
       - wise-owl-network
-    depends_on: [mongodb]
-    # labels:
-    #   - "prometheus.io/scrape=true"
-    #   - "prometheus.io/port=8080"
-    #   - "prometheus.io/path=/health/metrics"
 
-  # 4. Quiz Service
   quiz-service:
     container_name: wo-quiz-service
     image: wo-quiz-service:latest
-    # build:
-    #   context: .
-    #   dockerfile: ./services/quiz/Dockerfile
     restart: unless-stopped
-    env_file: [./.env.docker]
+    env_file: [./.env.production]
     environment:
       - DB_NAME=quiz_db
+      - DB_TYPE=documentdb
     networks:
       - wise-owl-network
-    depends_on: [mongodb]
-    # labels:
-    #   - "prometheus.io/scrape=true"
-    #   - "prometheus.io/port=8080"
-    #   - "prometheus.io/path=/health/metrics"
-
-  # 5. MongoDB Database
-  mongodb:
-    image: mongo:latest
-    container_name: wo-mongodb
-    restart: unless-stopped
-    env_file: [./.env.docker] # Injects MONGO_INITDB_ROOT_USERNAME/PASSWORD
-    ports: ["27017:27017"]
-    volumes: ["mongo_data:/data/db"]
-    networks:
-      - wise-owl-network
-    labels:
-      - "prometheus.io/scrape=false"
-
-volumes:
-  mongo_data:
 
 networks:
   wise-owl-network:

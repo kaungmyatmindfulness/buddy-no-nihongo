@@ -20,6 +20,7 @@ import (
 	"wise-owl/services/users/internal/handlers"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func main() {
@@ -36,26 +37,31 @@ func main() {
 	if dbName == "" {
 		dbName = "users_db"
 	}
-	log.Printf("Configuration loaded. Using database: %s", dbName)
+	log.Printf("Configuration loaded. Using database: %s (Type: %s)", dbName, cfg.DB_TYPE)
 
 	// 2. Connect to Database
-	dbConn := database.Connect(cfg.MONGODB_URI)
-	userCollection := dbConn.GetCollection(dbName, "users")
+	db := database.CreateDatabaseSingleton(cfg)
+	userCollection := db.GetCollection(dbName, "users")
 	log.Println("Database connection established.")
 
 	// 3. Initialize simple health checker
 	healthChecker := health.NewSimpleHealthChecker("Users Service")
-	healthChecker.SetMongoClient(dbConn.Client, dbName)
+	if mongoClient, ok := db.GetClient().(*mongo.Client); ok {
+		healthChecker.SetMongoClient(mongoClient, dbName)
+	}
 
 	// 4. Initialize HTTP Router and Shared Middleware
 	router := gin.Default()
 
 	authMiddleware := auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
 
-	// Dependency Injection: Pass the collection handle to the handlers.
-	userHandler := handlers.NewUserHandler(userCollection)
-
-	// 5. Define API Routes
+	// 5. Initialize user handler
+	var userHandler *handlers.UserHandler
+	if mongoCol, ok := userCollection.(*database.MongoCollection); ok {
+		userHandler = handlers.NewUserHandler(mongoCol.Collection)
+	} else {
+		log.Fatal("FATAL: Failed to get mongo collection from database interface")
+	} // 6. Define API Routes
 	// Simple health endpoints
 	router.GET("/health", healthChecker.Handler())
 	router.HEAD("/health", healthChecker.Handler())
@@ -75,7 +81,7 @@ func main() {
 		}
 	}
 
-	// 6. Start HTTP Server with Graceful Shutdown
+	// 7. Start HTTP Server with Graceful Shutdown
 	srv := &http.Server{
 		Addr:    ":" + cfg.ServerPort,
 		Handler: router,

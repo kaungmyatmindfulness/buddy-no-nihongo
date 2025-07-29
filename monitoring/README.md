@@ -264,13 +264,22 @@ monitoring/
 
 ### Server Setup
 
-```bash
-# Setup production server with monitoring
-./wise-owl deploy setup
+````bash
+## 🚀 Production Deployment
 
-# Deploy application with monitoring
-./wise-owl monitor setup-prod
-```
+**Note**: Deployment scripts have been temporarily removed and will be added back later.
+
+For manual setup, use Docker Compose directly:
+
+```bash
+# Start main application stack
+docker-compose -f docker-compose.prod.yml up -d
+
+# Start monitoring stack
+docker-compose -f docker-compose.monitoring.yml up -d
+````
+
+````
 
 ### Backup Strategy
 
@@ -283,7 +292,7 @@ docker run --rm \
   -v wo-monitoring_prometheus_data:/source \
   -v /opt/backups:/backup \
   alpine tar czf /backup/prometheus-$(date +%Y%m%d).tar.gz -C /source .
-```
+````
 
 ## 🔐 Security Considerations
 

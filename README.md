@@ -119,26 +119,31 @@ wise-owl-golang/
 
 ### Production Deployment
 
+**Note**: Deployment scripts have been temporarily removed and will be added back later.
+
+For now, you can use the production Docker Compose file directly:
+
 ```bash
 # Use production compose file
-docker-compose up -d
+docker-compose -f docker-compose.prod.yml up -d
 
 # Services will be available on port 80 via Nginx gateway
 ```
 
-## � Scripts Documentation
+## 📜 Scripts Documentation
 
 ### Overview: What, Why, and How
 
-The Wise Owl project uses a structured script system to simplify development and deployment workflows. These scripts automate complex Docker Compose operations, environment setup, health checking, and production deployment processes.
+The Wise Owl project uses a structured script system to simplify development workflows. These scripts automate complex Docker Compose operations, environment setup, and health checking.
 
 #### **What**: Script Categories
 
-The project organizes scripts into three main categories:
+The project organizes scripts into two main categories:
 
 1. **Development Scripts** (`scripts/development/`): Local development environment management
-2. **Deployment Scripts** (`scripts/deployment/`): Production server setup and application deployment
-3. **Utility Scripts** (`scripts/utils/`): Shared functions and common utilities
+2. **Utility Scripts** (`scripts/utils/`): Shared functions and common utilities
+
+**Note**: Deployment scripts have been temporarily removed and will be added back later.
 
 #### **Why**: The Need for Script Automation
 
@@ -146,7 +151,6 @@ The project organizes scripts into three main categories:
 - **Environment Consistency**: Ensures all developers use the same setup procedures
 - **Error Reduction**: Automated health checks and validation prevent common mistakes
 - **Onboarding Speed**: New developers can start with a single command
-- **Production Safety**: Standardized deployment procedures reduce deployment risks
 
 #### **How**: Running the Scripts
 
@@ -161,8 +165,8 @@ The project provides a unified command interface through the main `./wise-owl` s
 # Development commands
 ./wise-owl dev <command>
 
-# Deployment commands
-./wise-owl deploy <command>
+# Monitoring commands
+./wise-owl monitor <command>
 ```
 
 ### Development Scripts
@@ -268,54 +272,6 @@ The project provides a unified command interface through the main `./wise-owl` s
 ./wise-owl dev clean
 ```
 
-### Deployment Scripts
-
-#### Server Setup
-
-**Production Server Setup** - Prepares a clean server for deployment:
-
-```bash
-# What: Installs Docker, configures security, sets up monitoring
-# Why: Automated server hardening and essential software installation
-# How: Comprehensive setup script with firewall, fail2ban, user management
-sudo ./wise-owl deploy setup
-
-# Or run directly:
-sudo ./scripts/deployment/setup-raspberry-pi-generic.sh
-```
-
-**Features of server setup:**
-
-- System updates and essential packages
-- Docker and Docker Compose installation
-- User account creation and SSH key setup
-- Firewall configuration (UFW)
-- Security hardening with fail2ban
-- Monitoring setup (Prometheus, Grafana)
-
-#### Application Deployment
-
-**Deploy Wise Owl Application** - Deploys the application to a prepared server:
-
-```bash
-# What: Clones code, builds containers, starts production services
-# Why: Automated deployment reduces human error
-# How: Git clone, docker-compose build, environment setup
-./wise-owl deploy app
-
-# Or run directly:
-./scripts/deployment/deploy-wise-owl.sh
-```
-
-**Features of application deployment:**
-
-- Git repository cloning and updates
-- Protocol buffer code generation
-- Production environment configuration
-- SSL certificate setup (optional)
-- Database initialization and seeding
-- Health check validation
-
 ### Direct Script Access
 
 If you prefer to run scripts directly instead of using the unified interface:
@@ -326,9 +282,9 @@ If you prefer to run scripts directly instead of using the unified interface:
 ./scripts/development/dev-watch.sh              # Hot reload development
 ./scripts/development/test-dev.sh               # Health check testing
 
-# Deployment scripts
-./scripts/deployment/setup-raspberry-pi-generic.sh  # Server setup
-./scripts/deployment/deploy-wise-owl.sh             # Application deployment
+# Monitoring scripts
+./monitoring/scripts/monitor-stack.sh [command] # Monitoring stack management
+./monitoring/scripts/system-monitor.sh [option] # System monitoring
 
 # Utility scripts
 ./scripts/utils/common.sh                       # Shared functions (sourced by others)
@@ -346,9 +302,13 @@ If you prefer to run scripts directly instead of using the unified interface:
 
 #### Deployment Requirements
 
-- **Target Server**: Ubuntu 20.04+ or Debian 11+ (for production deployment)
-- **Root Access**: Server setup requires sudo/root privileges
-- **Network**: Internet connectivity for package installation
+**Note**: Deployment scripts have been temporarily removed. This section will be updated when deployment scripts are added back.
+
+For manual deployment:
+
+- **Target Server**: Ubuntu 20.04+ or Debian 11+ recommended
+- **Docker & Docker Compose**: Required on target server
+- **Network**: Internet connectivity for image downloads
 - **Resources**: Minimum 2GB RAM, 10GB disk space
 
 ### Environment Files
@@ -356,8 +316,9 @@ If you prefer to run scripts directly instead of using the unified interface:
 The scripts work with different environment configurations:
 
 - **`.env.local`**: Development environment (created by `./wise-owl dev setup`)
-- **`.env.docker`**: Production environment (created by deployment scripts)
 - **`.env.example`**: Template file with all required variables
+
+**Note**: References to `.env.docker` deployment environment have been removed as deployment scripts are temporarily unavailable.
 
 ### Troubleshooting Scripts
 

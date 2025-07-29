@@ -20,11 +20,13 @@ import (
 	"wise-owl/services/quiz/internal/handlers"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
+	// 1. Load Configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("FATAL: could not load config: %v", err)
@@ -34,17 +36,19 @@ func main() {
 	if dbName == "" {
 		dbName = "quiz_db"
 	}
-	log.Printf("Configuration loaded. Using database: %s", dbName)
+	log.Printf("Configuration loaded. Using database: %s (Type: %s)", dbName, cfg.DB_TYPE)
 
-	dbConn := database.Connect(cfg.MONGODB_URI)
-	dbHandle := dbConn.Client.Database(dbName)
+	// 2. Connect to Database
+	db := database.CreateDatabaseSingleton(cfg)
+	mongoClient := db.GetClient().(*mongo.Client)
+	mongoDatabase := mongoClient.Database(dbName)
 	log.Println("Database connection established.")
 
-	// Initialize simple health checker
+	// 3. Initialize simple health checker
 	healthChecker := health.NewSimpleHealthChecker("Quiz Service")
-	healthChecker.SetMongoClient(dbConn.Client, dbName)
+	healthChecker.SetMongoClient(mongoClient, dbName)
 
-	// --- gRPC Client Setup for Content Service ---
+	// 4. gRPC Client Setup for Content Service
 	contentServiceURL := "content-service:50052"
 	conn, err := grpc.Dial(contentServiceURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -54,11 +58,16 @@ func main() {
 	contentClient := pb_content.NewContentServiceClient(conn)
 	log.Printf("Successfully connected to content-service gRPC at %s", contentServiceURL)
 
+	// 5. Initialize HTTP Router and Handler
 	router := gin.Default()
 
 	authMiddleware := auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
-	quizHandler := handlers.NewQuizHandler(dbHandle, contentClient)
 
+	// Type assert dbHandle to *mongo.Database for quiz handler
+	var quizHandler *handlers.QuizHandler
+	quizHandler = handlers.NewQuizHandler(mongoDatabase, contentClient)
+
+	// 6. Define API Routes
 	// Simple health endpoints
 	router.GET("/health", healthChecker.Handler())
 	router.HEAD("/health", healthChecker.Handler())
@@ -76,8 +85,10 @@ func main() {
 		}
 	}
 
+	// 7. Start HTTP Server with Graceful Shutdown
 	srv := &http.Server{Addr: ":" + cfg.ServerPort, Handler: router}
 	go func() {
+		log.Printf("Quiz HTTP server listening on port %s", cfg.ServerPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("FATAL: listen: %s\n", err)
 		}

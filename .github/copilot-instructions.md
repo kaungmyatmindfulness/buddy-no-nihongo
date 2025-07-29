@@ -69,7 +69,7 @@ services/{name}/
 - MongoDB with collection per model type
 - Models use `bson` tags for MongoDB, `json` for REST
 - Database seeding through JSON files in `seed/` directories
-- Connection via `lib/database.Connect()`
+- Connection via `database.CreateDatabaseSingleton(cfg)` - supports MongoDB and AWS DocumentDB
 
 ### gRPC Integration
 

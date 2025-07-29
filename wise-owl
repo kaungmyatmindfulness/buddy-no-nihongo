@@ -1,6 +1,6 @@
 #!/bin/bash
 # Wise Owl Development Script - Main Entry Point
-# This script provides easy access to development and deployment scripts
+# This script provides easy access to development and monitoring scripts
 
 set -e
 
@@ -11,13 +11,12 @@ source "$SCRIPT_DIR/scripts/utils/common.sh"
 print_usage() {
     show_banner
     
-    echo "Development and deployment scripts for Wise Owl"
+    echo "Development and monitoring scripts for Wise Owl"
     echo ""
     echo "Usage: $0 <category> <command> [args...]"
     echo ""
     echo "Categories:"
     echo "  dev, development   - Development environment management"
-    echo "  deploy, deployment - Production deployment scripts"
     echo "  monitor, monitoring - Monitoring stack management"
     echo ""
     echo "Development Commands:"
@@ -39,18 +38,14 @@ print_usage() {
     echo "  ./wise-owl monitor urls     - Show dashboard URLs"
     echo "  ./wise-owl monitor system   - System monitoring info"
     echo ""
-    echo "Deployment Commands:"
-    echo "  ./wise-owl deploy setup  - Setup production server"
-    echo "  ./wise-owl deploy app    - Deploy Wise Owl application"
-    echo ""
     echo "Direct script access:"
     echo "  scripts/development/dev.sh         - Development management"
     echo "  scripts/development/dev-watch.sh   - Hot reload development"
     echo "  scripts/development/test-dev.sh    - Health check tests"
     echo "  monitoring/scripts/monitor-stack.sh - Monitoring management"
     echo "  monitoring/scripts/system-monitor.sh - System monitoring"
-    echo "  scripts/deployment/setup-raspberry-pi-generic.sh - Server setup"
-    echo "  scripts/deployment/deploy-wise-owl.sh           - App deployment"
+    echo ""
+    echo "Note: Deployment scripts have been removed and will be added later."
 }
 
 # Main script routing
@@ -80,28 +75,13 @@ case "$1" in
         esac
         ;;
     
-    "deploy"|"deployment")
-        case "$2" in
-            "setup")
-                exec "$SCRIPT_DIR/scripts/deployment/setup-raspberry-pi-generic.sh" "${@:3}"
-                ;;
-            "app")
-                exec "$SCRIPT_DIR/scripts/deployment/deploy-wise-owl.sh" "${@:3}"
-                ;;
-            *)
-                print_error "Unknown deployment command: $2"
-                print_usage
-                exit 1
-                ;;
-        esac
-        ;;
-    
     "help"|"-h"|"--help"|"")
         print_usage
         ;;
     
     *)
         print_error "Unknown category: $1"
+        print_info "Available categories: dev (development), monitor (monitoring)"
         print_usage
         exit 1
         ;;
