@@ -37,10 +37,12 @@ This is a **Japanese vocabulary learning platform** built as microservices with 
 
 ### Environment Setup
 
-- Environment files: `.env.local` (dev), `.env.docker` (production), `.env.example` (template)
+- Environment files: `.env.local.example` (dev template), `.env.aws.example` (AWS template)
 - Use `.envrc` for direnv support with `dotenv .env.local`
-- Config loaded via `lib/config.LoadConfig()` with defaults
+- Config loaded via `lib/config.LoadConfig()` with AWS detection
+- Supports both MongoDB (local) and DocumentDB (AWS) via `DB_TYPE` setting
 - Auth0 integration optional (set `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`)
+- AWS config auto-loads from Secrets Manager and Parameter Store in AWS environments
 
 ### Service Structure Pattern
 
@@ -66,10 +68,12 @@ services/{name}/
 
 ### Database & Models
 
-- MongoDB with collection per model type
+- MongoDB (local) and AWS DocumentDB (production) support via `DB_TYPE` config
 - Models use `bson` tags for MongoDB, `json` for REST
 - Database seeding through JSON files in `seed/` directories
-- Connection via `database.CreateDatabaseSingleton(cfg)` - supports MongoDB and AWS DocumentDB
+- Connection via `database.CreateDatabaseSingleton(cfg)` with auto-detection
+- AWS environments load credentials from Secrets Manager (`wise-owl/production`)
+- Each service uses dedicated database: `{service}_db` (e.g., `content_db`, `users_db`)
 
 ### gRPC Integration
 
@@ -83,6 +87,36 @@ services/{name}/
 - Use `lib/health.NewSimpleHealthChecker()`
 - Standard endpoints: `/health/ready`, `/health/live`
 - Docker health checks configured in compose files
+
+## AWS Deployment & Production
+
+### AWS Infrastructure
+
+- **ECS Fargate**: Containerized services with auto-scaling
+- **DocumentDB**: MongoDB-compatible managed database cluster
+- **ECR**: Container registry for service images (`users`, `content`, `quiz`, `nginx`)
+- **ALB**: Application Load Balancer with SSL termination
+- **Secrets Manager**: Centralized secret management (`wise-owl/production`)
+- **VPC**: Private networking with public/private subnet separation
+
+### Deployment Commands
+
+```bash
+./scripts/deploy-aws.sh                    # Full AWS deployment pipeline
+```
+
+### AWS Environment Detection
+
+- Config automatically detects AWS via `AWS_EXECUTION_ENV=AWS_ECS_FARGATE`
+- Uses `lib/config.IsAWSEnvironment()` for environment-specific logic
+- Secrets loaded from AWS Secrets Manager in production
+- Local development uses `.env.local`, AWS uses Secrets Manager
+
+### Environment Variables Priority
+
+1. **AWS**: Secrets Manager → Parameter Store → Environment variables
+2. **Local**: `.env.local` → Environment variables → Defaults
+3. **Detection**: `ECS_CONTAINER_METADATA_URI_V4` presence indicates AWS
 
 ## Service-Specific Knowledge
 
@@ -122,9 +156,13 @@ When adding new services to the microservices architecture:
 ## Key Files to Reference
 
 - `lib/config/config.go` - Centralized configuration pattern
+- `lib/config/aws.go` - AWS environment detection and utilities
 - `lib/auth/middleware.go` - JWT validation implementation
 - `services/content/cmd/main.go` - Example dual-server implementation
 - `nginx/default.conf` - API Gateway routing configuration
 - `proto/content/content.proto` - Example gRPC service definition
 - `docker-compose.dev.yml` - Development environment with hot reload
-- `docker-compose.dev.yml` - Development environment with hot reload
+- `scripts/deploy-aws.sh` - AWS deployment automation
+- `.env.local.example` - Local development environment template
+- `.env.aws.example` - AWS production environment template
+- `DOCUMENTATIONS/AWS_QUICK_START.md` - AWS deployment guide
