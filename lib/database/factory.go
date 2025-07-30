@@ -38,12 +38,3 @@ func CreateDatabase(cfg *config.Config) (DatabaseInterface, error) {
 
 	return NewDatabase(dbConfig.Type, dbConfig.URI)
 }
-
-// CreateDatabaseSingleton creates a singleton database instance
-func CreateDatabaseSingleton(cfg *config.Config) DatabaseInterface {
-	dbConfig := LoadDatabaseConfig(cfg)
-
-	log.Printf("Initializing database connection (singleton) - Type: %s", dbConfig.Type)
-
-	return NewDatabaseSingleton(dbConfig.Type, dbConfig.URI)
-}
