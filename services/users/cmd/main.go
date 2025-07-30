@@ -24,13 +24,15 @@ import (
 )
 
 func main() {
-	// 1. Load Configuration
+	// 1. Load Configuration (supports both local and AWS environments)
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("FATAL: could not load config: %v", err)
 	}
+
+	// 2. Validate Auth0 configuration (optional for development)
 	if cfg.Auth0Domain == "" || cfg.Auth0Audience == "" {
-		log.Fatal("FATAL: AUTH0_DOMAIN and AUTH0_AUDIENCE must be set")
+		log.Println("WARNING: AUTH0_DOMAIN and AUTH0_AUDIENCE not set. Authentication will be skipped in development.")
 	}
 
 	dbName := cfg.DB_NAME
@@ -39,39 +41,74 @@ func main() {
 	}
 	log.Printf("Configuration loaded. Using database: %s (Type: %s)", dbName, cfg.DB_TYPE)
 
-	// 2. Connect to Database
+	// 3. Connect to Database (supports MongoDB and DocumentDB)
 	db := database.CreateDatabaseSingleton(cfg)
 	userCollection := db.GetCollection(dbName, "users")
 	log.Println("Database connection established.")
 
-	// 3. Initialize simple health checker
-	healthChecker := health.NewSimpleHealthChecker("Users Service")
-	if mongoClient, ok := db.GetClient().(*mongo.Client); ok {
-		healthChecker.SetMongoClient(mongoClient, dbName)
+	// 4. Initialize health checker (choose based on environment)
+	var healthChecker interface {
+		RegisterRoutes(*gin.Engine)
+		Handler() gin.HandlerFunc
+		ReadyHandler() gin.HandlerFunc
 	}
 
-	// 4. Initialize HTTP Router and Shared Middleware
+	// Use AWS health checker if running in AWS environment
+	if config.IsAWSEnvironment() {
+		log.Println("AWS environment detected, using enhanced health checks")
+		if mongoClient, ok := db.GetClient().(*mongo.Client); ok {
+			mongoDatabase := mongoClient.Database(dbName)
+			awsHealthChecker := health.NewAWSHealthChecker("Users Service", mongoDatabase)
+			healthChecker = awsHealthChecker
+		} else {
+			log.Println("WARNING: Could not get mongo client for AWS health checker, falling back to simple health checker")
+			simpleHealthChecker := health.NewSimpleHealthChecker("Users Service")
+			if mongoClient, ok := db.GetClient().(*mongo.Client); ok {
+				simpleHealthChecker.SetMongoClient(mongoClient, dbName)
+			}
+			healthChecker = simpleHealthChecker
+		}
+	} else {
+		log.Println("Local environment detected, using simple health checks")
+		simpleHealthChecker := health.NewSimpleHealthChecker("Users Service")
+		if mongoClient, ok := db.GetClient().(*mongo.Client); ok {
+			simpleHealthChecker.SetMongoClient(mongoClient, dbName)
+		}
+		healthChecker = simpleHealthChecker
+	}
+
+	// 5. Initialize HTTP Router and Middleware
 	router := gin.Default()
 
-	authMiddleware := auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
+	// Initialize auth middleware (skip if Auth0 not configured)
+	var authMiddleware gin.HandlerFunc
+	if cfg.Auth0Domain != "" && cfg.Auth0Audience != "" {
+		authMiddleware = auth.EnsureValidToken(cfg.Auth0Domain, cfg.Auth0Audience)
+		log.Println("Auth0 authentication enabled")
+	} else {
+		// No-op middleware for development
+		authMiddleware = func(c *gin.Context) {
+			c.Next()
+		}
+		log.Println("Authentication disabled for development")
+	}
 
-	// 5. Initialize user handler
+	// 6. Initialize user handler
 	var userHandler *handlers.UserHandler
 	if mongoCol, ok := userCollection.(*database.MongoCollection); ok {
 		userHandler = handlers.NewUserHandler(mongoCol.Collection)
 	} else {
 		log.Fatal("FATAL: Failed to get mongo collection from database interface")
-	} // 6. Define API Routes
-	// Simple health endpoints
-	router.GET("/health", healthChecker.Handler())
-	router.HEAD("/health", healthChecker.Handler())
-	router.GET("/health/ready", healthChecker.ReadyHandler())
-	router.HEAD("/health/ready", healthChecker.ReadyHandler())
+	}
 
+	// 7. Register health check routes
+	healthChecker.RegisterRoutes(router)
+
+	// 8. Define API Routes
 	apiV1 := router.Group("/api/v1")
 	{
 		userRoutes := apiV1.Group("/users")
-		// All routes in this group will be protected by the shared auth middleware.
+		// Apply auth middleware to all user routes
 		userRoutes.Use(authMiddleware)
 		{
 			userRoutes.POST("/onboarding", userHandler.OnboardUser)
@@ -81,7 +118,7 @@ func main() {
 		}
 	}
 
-	// 7. Start HTTP Server with Graceful Shutdown
+	// 9. Start HTTP Server with Graceful Shutdown
 	srv := &http.Server{
 		Addr:    ":" + cfg.ServerPort,
 		Handler: router,

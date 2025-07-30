@@ -27,7 +27,7 @@ import (
 )
 
 func main() {
-	// 1. Load Configuration
+	// 1. Load Configuration (supports both local and AWS environments)
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("FATAL: could not load config: %v", err)
@@ -39,7 +39,7 @@ func main() {
 	}
 	log.Printf("Configuration loaded. Using database: %s (Type: %s)", dbName, cfg.DB_TYPE)
 
-	// 2. Connect to Database
+	// 2. Connect to Database (supports MongoDB and DocumentDB)
 	db := database.CreateDatabaseSingleton(cfg)
 	mongoClient := db.GetClient().(*mongo.Client)
 	mongoDatabase := mongoClient.Database(dbName)
@@ -48,13 +48,33 @@ func main() {
 	// 3. Seed data
 	seeder.SeedData(dbName, mongoClient)
 
-	// 4. Initialize simple health checker
-	healthChecker := health.NewSimpleHealthChecker("Content Service")
-	healthChecker.SetMongoClient(mongoClient, dbName)
+	// 4. Initialize health checker (choose based on environment)
+	var healthChecker interface {
+		RegisterRoutes(*gin.Engine)
+		Handler() gin.HandlerFunc
+		ReadyHandler() gin.HandlerFunc
+	}
+
+	// Use AWS health checker if running in AWS environment
+	if config.IsAWSEnvironment() {
+		log.Println("AWS environment detected, using enhanced health checks")
+		awsHealthChecker := health.NewAWSHealthChecker("Content Service", mongoDatabase)
+		healthChecker = awsHealthChecker
+	} else {
+		log.Println("Local environment detected, using simple health checks")
+		simpleHealthChecker := health.NewSimpleHealthChecker("Content Service")
+		simpleHealthChecker.SetMongoClient(mongoClient, dbName)
+		healthChecker = simpleHealthChecker
+	}
 
 	// 5. Start gRPC Server (for internal communication)
+	grpcPort := cfg.GRPCPort
+	if grpcPort == "" {
+		grpcPort = "50052" // Default for content service
+	}
+
 	go func() {
-		lis, err := net.Listen("tcp", ":50052") // Use a unique internal port
+		lis, err := net.Listen("tcp", ":"+grpcPort)
 		if err != nil {
 			log.Fatalf("FATAL: Failed to listen for gRPC: %v", err)
 		}
@@ -72,17 +92,14 @@ func main() {
 	// 6. Initialize and Start Gin HTTP Server
 	router := gin.Default()
 
-	// Type assert dbHandle to *mongo.Database for content handler
+	// Initialize content handler
 	var contentHandler *handlers.ContentHandler
 	contentHandler = handlers.NewContentHandler(mongoDatabase)
 
-	// 7. Define API Routes
-	// Simple health endpoints
-	router.GET("/health", healthChecker.Handler())
-	router.HEAD("/health", healthChecker.Handler())
-	router.GET("/health/ready", healthChecker.ReadyHandler())
-	router.HEAD("/health/ready", healthChecker.ReadyHandler())
+	// 7. Register health check routes
+	healthChecker.RegisterRoutes(router)
 
+	// 8. Define API Routes
 	apiV1 := router.Group("/api/v1")
 	{
 		lessonRoutes := apiV1.Group("/lessons")
@@ -92,7 +109,7 @@ func main() {
 		}
 	}
 
-	// 8. Graceful Shutdown Logic
+	// 9. Graceful Shutdown Logic
 	srv := &http.Server{Addr: ":" + cfg.ServerPort, Handler: router}
 	go func() {
 		log.Printf("Content HTTP server listening on port %s", cfg.ServerPort)

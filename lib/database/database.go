@@ -5,10 +5,14 @@ package database
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net"
 	"sync"
 	"time"
+
+	"wise-owl/lib/config"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -75,6 +79,60 @@ func (mdb *MongoDatabase) Connect(uri string) error {
 	return nil
 }
 
+// ConnectDocumentDB establishes a connection specifically to AWS DocumentDB
+func (mdb *MongoDatabase) ConnectDocumentDB(uri string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// DocumentDB requires TLS
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: false,
+	}
+
+	// Custom dialer for DocumentDB with retries
+	dialer := &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	clientOptions := options.Client().
+		ApplyURI(uri).
+		SetTLSConfig(tlsConfig).
+		SetDialer(dialer).
+		SetReplicaSet("rs0").
+		SetReadPreference(readpref.SecondaryPreferred()).
+		SetMaxConnIdleTime(30 * time.Second).
+		SetMaxPoolSize(10).
+		SetRetryWrites(false) // DocumentDB doesn't support retryable writes
+
+	client, err := mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		return fmt.Errorf("failed to connect to DocumentDB: %v", err)
+	}
+
+	// Test the connection with retry
+	var pingErr error
+	for i := 0; i < 3; i++ {
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		pingErr = client.Ping(pingCtx, readpref.SecondaryPreferred())
+		pingCancel()
+
+		if pingErr == nil {
+			break
+		}
+		log.Printf("DocumentDB ping attempt %d failed: %v", i+1, pingErr)
+		time.Sleep(time.Second)
+	}
+
+	if pingErr != nil {
+		return fmt.Errorf("failed to ping DocumentDB after retries: %v", pingErr)
+	}
+
+	mdb.Client = client
+	log.Println("Successfully connected to AWS DocumentDB.")
+	return nil
+}
+
 // GetClient returns the underlying mongo client
 func (mdb *MongoDatabase) GetClient() interface{} {
 	return mdb.Client
@@ -116,17 +174,37 @@ var (
 
 // NewDatabase creates a new database instance based on the database type
 func NewDatabase(dbType DatabaseType, uri string) (DatabaseInterface, error) {
+	log.Printf("Creating database connection - Type: %s", dbType)
+
 	switch dbType {
-	case MongoDB, DocumentDB:
+	case MongoDB:
 		db := &MongoDatabase{}
 		err := db.Connect(uri)
 		if err != nil {
+			log.Printf("Failed to connect to MongoDB: %v", err)
 			return nil, err
 		}
+		log.Println("Successfully connected to MongoDB")
+		return db, nil
+	case DocumentDB:
+		db := &MongoDatabase{}
+		err := db.ConnectDocumentDB(uri)
+		if err != nil {
+			log.Printf("Failed to connect to DocumentDB: %v", err)
+			return nil, err
+		}
+		log.Println("Successfully connected to AWS DocumentDB")
 		return db, nil
 	default:
-		log.Printf("Unsupported database type: %s", dbType)
-		return nil, fmt.Errorf("unsupported database type: %s", dbType)
+		log.Printf("Unsupported database type: %s, falling back to MongoDB", dbType)
+		// Fallback to MongoDB for unknown types
+		db := &MongoDatabase{}
+		err := db.Connect(uri)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to fallback MongoDB: %v", err)
+		}
+		log.Println("Connected to fallback MongoDB")
+		return db, nil
 	}
 }
 
@@ -140,6 +218,13 @@ func NewDatabaseSingleton(dbType DatabaseType, uri string) DatabaseInterface {
 		dbInstance = db
 	})
 	return dbInstance
+}
+
+// CreateDatabaseSingleton creates a singleton database instance using config
+// This function maintains backward compatibility with existing code
+func CreateDatabaseSingleton(cfg *config.Config) DatabaseInterface {
+	dbType := DatabaseType(cfg.DB_TYPE)
+	return NewDatabaseSingleton(dbType, cfg.MONGODB_URI)
 }
 
 // GetDatabaseInstance returns the singleton database instance

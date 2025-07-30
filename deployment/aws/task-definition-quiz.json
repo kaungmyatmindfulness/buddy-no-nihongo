@@ -1,0 +1,99 @@
+{
+	"family": "wise-owl-quiz",
+	"networkMode": "awsvpc",
+	"requiresCompatibilities": ["FARGATE"],
+	"cpu": "512",
+	"memory": "1024",
+	"executionRoleArn": "arn:aws:iam::{{AWS_ACCOUNT_ID}}:role/wise-owl-ecs-task-execution-role",
+	"taskRoleArn": "arn:aws:iam::{{AWS_ACCOUNT_ID}}:role/wise-owl-ecs-task-role",
+	"containerDefinitions": [
+		{
+			"name": "quiz-service",
+			"image": "{{AWS_ACCOUNT_ID}}.dkr.ecr.{{AWS_REGION}}.amazonaws.com/wise-owl-quiz:latest",
+			"portMappings": [
+				{
+					"containerPort": 8083,
+					"protocol": "tcp"
+				},
+				{
+					"containerPort": 50053,
+					"protocol": "tcp"
+				}
+			],
+			"environment": [
+				{
+					"name": "SERVER_PORT",
+					"value": "8083"
+				},
+				{
+					"name": "GRPC_PORT",
+					"value": "50053"
+				},
+				{
+					"name": "AWS_EXECUTION_ENV",
+					"value": "AWS_ECS_FARGATE"
+				},
+				{
+					"name": "ENVIRONMENT",
+					"value": "production"
+				},
+				{
+					"name": "DB_TYPE",
+					"value": "documentdb"
+				},
+				{
+					"name": "CONTENT_SERVICE_URL",
+					"value": "content-service.wise-owl-cluster.local:50052"
+				}
+			],
+			"secrets": [
+				{
+					"name": "MONGODB_URI",
+					"valueFrom": "arn:aws:secretsmanager:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:secret:wise-owl/production:MONGODB_URI::"
+				},
+				{
+					"name": "JWT_SECRET",
+					"valueFrom": "arn:aws:secretsmanager:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:secret:wise-owl/production:JWT_SECRET::"
+				},
+				{
+					"name": "AUTH0_DOMAIN",
+					"valueFrom": "arn:aws:secretsmanager:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:secret:wise-owl/production:AUTH0_DOMAIN::"
+				},
+				{
+					"name": "AUTH0_AUDIENCE",
+					"valueFrom": "arn:aws:secretsmanager:{{AWS_REGION}}:{{AWS_ACCOUNT_ID}}:secret:wise-owl/production:AUTH0_AUDIENCE::"
+				}
+			],
+			"logConfiguration": {
+				"logDriver": "awslogs",
+				"options": {
+					"awslogs-group": "/ecs/wise-owl",
+					"awslogs-region": "{{AWS_REGION}}",
+					"awslogs-stream-prefix": "quiz"
+				}
+			},
+			"healthCheck": {
+				"command": [
+					"CMD-SHELL",
+					"curl -f http://localhost:8083/health/ready || exit 1"
+				],
+				"interval": 30,
+				"timeout": 5,
+				"retries": 3,
+				"startPeriod": 60
+			},
+			"essential": true,
+			"stopTimeout": 30
+		}
+	],
+	"tags": [
+		{
+			"key": "Service",
+			"value": "wise-owl-quiz"
+		},
+		{
+			"key": "Environment",
+			"value": "production"
+		}
+	]
+}

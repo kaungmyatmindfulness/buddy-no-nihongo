@@ -53,6 +53,8 @@ build/
 # Keep example files
 !.env.example
 !.env.local.example
+!.env.aws.example
+!.env.production.example
 !.env.monitoring.example
 
 # ==============================================================================
