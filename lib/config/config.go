@@ -15,6 +15,7 @@ import (
 )
 
 // Config holds the essential configuration for all services
+// Maintains backward compatibility while adding new AWS-specific fields
 type Config struct {
 	ServerPort    string
 	GRPCPort      string
@@ -25,6 +26,33 @@ type Config struct {
 	Auth0Domain   string
 	Auth0Audience string
 	JWT_SECRET    string
+	Environment   string // Added for AWS environment detection
+}
+
+// AppConfig provides a more structured configuration approach for AWS deployments
+type AppConfig struct {
+	Port        string
+	GRPCPort    string
+	LogLevel    string
+	Environment string
+	Database    DatabaseConfig
+	JWT         JWTConfig
+	Auth0       Auth0Config
+}
+
+type DatabaseConfig struct {
+	URI  string
+	Name string
+	Type string
+}
+
+type JWTConfig struct {
+	Secret string
+}
+
+type Auth0Config struct {
+	Domain   string
+	Audience string
 }
 
 // AWSConfigLoader handles loading configuration from AWS services
@@ -186,6 +214,107 @@ func loadAWSConfig(cfg *Config) error {
 	}
 
 	return nil
+}
+
+// LoadConfigAWS provides enhanced AWS-aware configuration loading
+func LoadConfigAWS() (*AppConfig, error) {
+	cfg := &AppConfig{
+		Port:        getEnv("PORT", "8080"),
+		GRPCPort:    getEnv("GRPC_PORT", "50051"),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		Environment: getEnv("ENVIRONMENT", "production"),
+	}
+
+	// Initialize database config with defaults
+	cfg.Database.URI = getEnv("MONGODB_URI", "mongodb://localhost:27017")
+	cfg.Database.Type = getEnv("DB_TYPE", "mongodb")
+	cfg.Database.Name = getEnv("DB_NAME", "")
+
+	// Initialize JWT config
+	cfg.JWT.Secret = getEnv("JWT_SECRET", "")
+
+	// Initialize Auth0 config
+	cfg.Auth0.Domain = getEnv("AUTH0_DOMAIN", "")
+	cfg.Auth0.Audience = getEnv("AUTH0_AUDIENCE", "")
+
+	// Load from AWS if running in AWS environment
+	if getEnv("AWS_EXECUTION_ENV", "") != "" {
+		log.Println("AWS execution environment detected, loading configuration from AWS services...")
+		awsLoader, err := NewAWSConfigLoader()
+		if err != nil {
+			log.Printf("Failed to initialize AWS config loader: %v", err)
+			return convertToAppConfig(LoadConfig()) // Fallback to existing config
+		}
+
+		// Load secrets
+		secrets, err := awsLoader.LoadSecrets("wise-owl/production")
+		if err != nil {
+			log.Printf("Failed to load AWS secrets: %v", err)
+		} else {
+			if mongoURI, ok := secrets["MONGODB_URI"]; ok && mongoURI != "" {
+				cfg.Database.URI = mongoURI
+				log.Println("Loaded MONGODB_URI from AWS Secrets Manager")
+			}
+			if jwtSecret, ok := secrets["JWT_SECRET"]; ok && jwtSecret != "" {
+				cfg.JWT.Secret = jwtSecret
+				log.Println("Loaded JWT_SECRET from AWS Secrets Manager")
+			}
+			if auth0Domain, ok := secrets["AUTH0_DOMAIN"]; ok && auth0Domain != "" {
+				cfg.Auth0.Domain = auth0Domain
+				log.Println("Loaded AUTH0_DOMAIN from AWS Secrets Manager")
+			}
+			if auth0Audience, ok := secrets["AUTH0_AUDIENCE"]; ok && auth0Audience != "" {
+				cfg.Auth0.Audience = auth0Audience
+				log.Println("Loaded AUTH0_AUDIENCE from AWS Secrets Manager")
+			}
+		}
+
+		// Load parameters from Systems Manager
+		paramPrefix := GetParameterPrefix()
+		if dbType, err := awsLoader.LoadParameter(paramPrefix + "/DB_TYPE"); err == nil && dbType != "" {
+			cfg.Database.Type = dbType
+			log.Printf("Loaded DB_TYPE from AWS Parameter Store: %s", dbType)
+		}
+	}
+
+	log.Printf("AWS Configuration loaded - Port: %s, GRPC Port: %s, DB Type: %s, Environment: %s",
+		cfg.Port, cfg.GRPCPort, cfg.Database.Type, cfg.Environment)
+
+	return cfg, nil
+}
+
+// convertToAppConfig converts legacy Config to new AppConfig structure
+func convertToAppConfig(oldCfg *Config, err error) (*AppConfig, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	return &AppConfig{
+		Port:        oldCfg.ServerPort,
+		GRPCPort:    oldCfg.GRPCPort,
+		LogLevel:    oldCfg.LogLevel,
+		Environment: getEnv("ENVIRONMENT", "development"),
+		Database: DatabaseConfig{
+			URI:  oldCfg.MONGODB_URI,
+			Name: oldCfg.DB_NAME,
+			Type: oldCfg.DB_TYPE,
+		},
+		JWT: JWTConfig{
+			Secret: oldCfg.JWT_SECRET,
+		},
+		Auth0: Auth0Config{
+			Domain:   oldCfg.Auth0Domain,
+			Audience: oldCfg.Auth0Audience,
+		},
+	}, nil
+}
+
+// getEnvWithDefault gets environment variable with fallback (exported version)
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // getEnv gets environment variable with fallback

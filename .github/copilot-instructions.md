@@ -99,11 +99,13 @@ services/{name}/
 - **Secrets Manager**: Centralized secret management (`wise-owl/production`)
 - **VPC**: Private networking with public/private subnet separation
 
-### Deployment Commands
+### Deployment Approach
 
-```bash
-./scripts/deploy-aws.sh                    # Full AWS deployment pipeline
-```
+**Manual Learning-Focused Deployment:**
+
+- Follow `AWS_MANUAL_DEPLOYMENT_GUIDE.md` for step-by-step AWS setup
+- Use `AWS_TROUBLESHOOTING_GUIDE.md` for debugging issues
+- All commands explained with what/why/how context for learning
 
 ### AWS Environment Detection
 
@@ -155,14 +157,26 @@ When adding new services to the microservices architecture:
 
 ## Key Files to Reference
 
-- `lib/config/config.go` - Centralized configuration pattern
+- `lib/config/config.go` - Centralized configuration pattern with AWS support
 - `lib/config/aws.go` - AWS environment detection and utilities
+- `lib/database/documentdb.go` - AWS DocumentDB connection support
+- `lib/health/aws.go` - Enhanced health checks for AWS deployment
 - `lib/auth/middleware.go` - JWT validation implementation
 - `services/content/cmd/main.go` - Example dual-server implementation
+- `services/users/cmd/main_aws.go` - AWS-optimized service implementation example
 - `nginx/default.conf` - API Gateway routing configuration
 - `proto/content/content.proto` - Example gRPC service definition
 - `docker-compose.dev.yml` - Development environment with hot reload
-- `scripts/deploy-aws.sh` - AWS deployment automation
 - `.env.local.example` - Local development environment template
 - `.env.aws.example` - AWS production environment template
-- `DOCUMENTATIONS/AWS_QUICK_START.md` - AWS deployment guide
+- `.env.ecs.example` - ECS task definition environment variables
+
+### AWS Learning Documentation
+
+- `AWS_MANUAL_DEPLOYMENT_GUIDE.md` - Complete step-by-step AWS deployment
+- `AWS_LEARNING_WORKFLOW.md` - Structured 8-day learning approach
+- `AWS_COMMAND_REFERENCE.md` - Detailed explanation of every AWS command
+- `AWS_TROUBLESHOOTING_GUIDE.md` - Common issues and debugging steps
+- `AWS_MANUAL_SETUP_GUIDE.md` - Manual infrastructure setup (no automation)
+- `AWS_CODE_UPDATES.md` - AWS-specific code examples and patterns
+- `AWS_QUICK_START.md` - Quick checklist for deployment validation
