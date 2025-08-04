@@ -1,6 +1,24 @@
 # Wise Owl - Japanese Vocabulary Learning Platform
 
-A modern microservices-based Japanese vocabulary learning platform built with Go, designed to help learners manage and practice Japanese vocabulary through interactive quizzes and spaced repetition.
+A modern microservices-based Japanese vocabulary learning platform built with Go, designed to help learners manage and practice Japanese vocabula# Health monitoring commands  
+./wise-owl monitor <command>
+
+````
+
+### Unified Command Interface
+
+The project provides a unified command interface through the main `./wise-owl.sh` script:
+
+```bash
+# Check all available commands
+./wise-owl.sh --help
+
+# Development commands
+./wise-owl.sh dev <command>
+
+# Health monitoring commands
+./wise-owl.sh monitor <command>
+```tive quizzes and spaced repetition.
 
 ## 🎯 Overview
 
@@ -12,9 +30,8 @@ Wise Owl is a scalable microservices application that provides vocabulary manage
 - **User Authentication**: Auth0-powered JWT authentication
 - **Interactive Quizzes**: Track incorrect words and enable spaced repetition learning
 - **Lesson Organization**: Structured vocabulary lessons with word classifications
+- **Health Monitoring**: Comprehensive health checks, monitoring dashboard, and service status tracking
 - **Microservices Architecture**: Independent, scalable services with clean APIs
-- **Real-time Communication**: gRPC for efficient inter-service communication
-- **Health Monitoring**: Built-in health checks and service monitoring
 
 ## 🏗️ Architecture
 
@@ -51,6 +68,11 @@ wise-owl-golang/
 ├── proto/                       # Protocol Buffer definitions
 ├── gen/                         # Generated gRPC code
 ├── nginx/                       # API Gateway configuration
+├── monitoring/                  # Health monitoring dashboard and tools
+├── scripts/                     # Development and monitoring scripts
+│   ├── development/             # Local development utilities
+│   ├── monitoring/              # Health monitoring and dashboard scripts
+│   └── utils/                   # Shared script utilities
 ├── DOCUMENTATIONS/              # AWS deployment guides and references
 ├── deployment/                  # AWS deployment configurations
 ├── docker-compose.dev.yml       # Development environment
@@ -59,7 +81,7 @@ wise-owl-golang/
 ├── .env.aws.example             # AWS environment template
 ├── .env.ecs.example             # ECS-specific environment template
 └── go.work                      # Go workspace configuration
-```
+````
 
 ## 🛠️ Technology Stack
 
@@ -104,23 +126,30 @@ wise-owl-golang/
 
    ```bash
    # Start all services
-   ./wise-owl dev start
+   ./wise-owl.sh dev start
 
    # Or start with hot reload (requires Docker Compose 2.22+)
-   ./wise-owl dev watch
+   ./wise-owl.sh dev watch
    ```
 
 4. **Verify Installation**
 
    ```bash
-   # Test all services
-   ./wise-owl dev test
+   # Test all services and monitoring
+   ./wise-owl.sh dev test
 
    # Access points:
    # - API Gateway: http://localhost:8080
    # - Users Service: http://localhost:8081
    # - Content Service: http://localhost:8082
    # - Quiz Service: http://localhost:8083
+   # - MongoDB: mongodb://localhost:27017
+
+   # Health endpoints through gateway:
+   # - http://localhost:8080/api/v1/users/health
+   # - http://localhost:8080/api/v1/content/health
+   # - http://localhost:8080/api/v1/quiz/health
+   # - http://localhost:8080/health-check (Gateway health)
    ```
 
 ### Production Deployment
@@ -258,11 +287,103 @@ The project provides a unified command interface through the main `./wise-owl` s
 **Health Check** - Validates all services are responding:
 
 ```bash
-# What: Tests HTTP endpoints on all microservices
-# Why: Quickly verify that all services are healthy
-# How: Curl requests to /health endpoints on each service
+# What: Tests HTTP endpoints on all microservices and gateway routing
+# Why: Quickly verify that all services are healthy and properly connected
+# How: Curl requests to /health endpoints on each service + gateway routing tests
+./wise-owl.sh dev test
+```
+
+## 🔍 Health Monitoring & Observability
+
+Wise Owl includes a comprehensive monitoring system designed for both development and production environments.
+
+### Health Check Endpoints
+
+Every service exposes multiple health check endpoints for different use cases:
+
+| Endpoint        | Purpose                        | Response Format                         | Use Case                         |
+| --------------- | ------------------------------ | --------------------------------------- | -------------------------------- |
+| `/health/`      | Basic health + database status | JSON with uptime, database connectivity | Development monitoring           |
+| `/health/ready` | Readiness probe                | `{"ready": true/false}`                 | ALB health checks, K8s readiness |
+| `/health/live`  | Liveness probe                 | `{"status": "alive"}`                   | ECS health checks, K8s liveness  |
+| `/health/deep`  | Comprehensive metrics          | Detailed system info                    | AWS CloudWatch, debugging        |
+
+### Gateway Health Monitoring
+
+Access health endpoints through the API Gateway for end-to-end monitoring:
+
+```bash
+# Gateway health
+curl http://localhost:8080/health-check
+
+# Service health through gateway
+curl http://localhost:8080/api/v1/users/health
+curl http://localhost:8080/api/v1/content/health
+curl http://localhost:8080/api/v1/quiz/health
+
+# Readiness checks for load balancer
+curl http://localhost:8080/api/v1/users/health/ready
+```
+
+### Monitoring Tools
+
+#### 1. Quick Health Check
+
+```bash
+# Basic health validation
 ./wise-owl dev test
 ```
+
+**Features:** Tests all services + gateway routing, clear pass/fail indicators, CI/CD friendly
+
+#### 2. Comprehensive Monitor
+
+```bash
+# Single comprehensive check
+./scripts/monitoring/health-monitor.sh local once
+
+# Continuous monitoring (auto-refresh every 30s)
+./scripts/monitoring/health-monitor.sh local continuous
+
+# Generate JSON status report
+./scripts/monitoring/health-monitor.sh local report
+```
+
+**Features:** Detailed health information, continuous monitoring, JSON reports for automation, supports both local and AWS environments
+
+#### 3. Web Dashboard
+
+```bash
+# Start monitoring dashboard server
+./scripts/monitoring/dashboard-server.sh 3000
+
+# Access at: http://localhost:3000/dashboard.html
+```
+
+**Features:** Real-time web interface, auto-refresh, visual status indicators, mobile-responsive
+
+### Production Monitoring (AWS)
+
+The monitoring system is AWS-ready with:
+
+- **ECS Health Checks**: Container-level health validation
+- **ALB Target Groups**: Load balancer health routing
+- **CloudWatch Integration**: Automated log collection and metrics
+- **Route 53 Health Checks**: DNS-level failover capability
+
+```bash
+# Monitor AWS production environment
+ALB_DNS=your-alb-dns.elb.amazonaws.com ./scripts/monitoring/health-monitor.sh aws continuous
+```
+
+### Monitoring Best Practices
+
+1. **Development**: Use `./wise-owl.sh dev test` for quick validation
+2. **CI/CD**: Integrate health checks in deployment pipelines
+3. **Production**: Set up continuous monitoring with alerting
+4. **Debugging**: Use `/health/deep` endpoints for detailed diagnostics
+
+For complete monitoring setup details, see `MONITORING_SETUP.md`.
 
 **Service Status** - Shows current state of containers:
 
@@ -388,24 +509,25 @@ The scripts are designed to be extensible. Key customization points:
 
 ```bash
 # Service management
-./wise-owl dev start          # Start all services
-./wise-owl dev stop           # Stop all services
-./wise-owl dev restart        # Restart all services
-./wise-owl dev logs [service] # View logs
-./wise-owl dev build          # Rebuild containers
-./wise-owl dev clean          # Complete cleanup
+./wise-owl.sh dev start          # Start all services
+./wise-owl.sh dev stop           # Stop all services
+./wise-owl.sh dev restart        # Restart all services
+./wise-owl.sh dev logs [service] # View logs
+./wise-owl.sh dev build          # Rebuild containers
+./wise-owl.sh dev clean          # Complete cleanup
 
 # Hot reload development
-./wise-owl dev watch          # Start with hot reload
+./wise-owl.sh dev watch          # Start with hot reload
 
 # Testing and monitoring
-./wise-owl dev test           # Health check all services
-./wise-owl dev status         # Show service status
+./wise-owl.sh dev test           # Health check all services
+./wise-owl.sh dev status         # Show service status
 
-# Monitoring commands (if monitoring stack is configured)
-./wise-owl monitor start      # Start monitoring stack
-./wise-owl monitor stop       # Stop monitoring stack
-./wise-owl monitor status     # Show monitoring status
+# Health monitoring commands
+./scripts/monitoring/health-monitor.sh local once        # Single health check
+./scripts/monitoring/health-monitor.sh local continuous  # Continuous monitoring
+./scripts/monitoring/health-monitor.sh local report      # JSON status report
+./scripts/monitoring/dashboard-server.sh 3000            # Web dashboard (port 3000)
 ```
 
 ### Working with Services
@@ -452,12 +574,18 @@ protoc --go_out=gen --go-grpc_out=gen proto/content/*.proto
 
 ### Health Endpoints (All Services)
 
-| Endpoint        | Description                   |
-| --------------- | ----------------------------- |
-| `/health`       | Basic health status           |
-| `/health/ready` | Readiness check (includes DB) |
-| `/health/live`  | Liveness check for containers |
-| `/health/deep`  | Detailed health (AWS only)    |
+| Endpoint        | Description                                    | Response Format                                                              | Use Case                                |
+| --------------- | ---------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------- |
+| `/health/`      | Basic health status with database connectivity | `{"status":"healthy","service":"...","uptime":"...","database":"connected"}` | Development monitoring                  |
+| `/health/ready` | Readiness check (includes database validation) | `{"ready": true/false}`                                                      | ALB health checks, K8s readiness probes |
+| `/health/live`  | Liveness check for containers                  | `{"status":"alive","service":"...","timestamp":"..."}`                       | ECS health checks, K8s liveness probes  |
+| `/health/deep`  | Detailed health with system metrics (AWS only) | Comprehensive system information                                             | CloudWatch monitoring, debugging        |
+
+**Gateway Health Endpoints:**
+
+- `http://localhost:8080/health-check` - Gateway health status
+- `http://localhost:8080/api/v1/{service}/health` - Service health through gateway
+- `http://localhost:8080/api/v1/{service}/health/ready` - Service readiness through gateway
 
 ## ⚙️ Configuration
 
@@ -622,11 +750,32 @@ This project is licensed under the MIT License. See LICENSE file for details.
 
 ## 🆘 Support & Resources
 
+### Documentation & Monitoring
+
+- **Complete Monitoring Guide**: See `MONITORING_SETUP.md` for comprehensive monitoring documentation
+- **Health Dashboard**: Use `./scripts/monitoring/dashboard-server.sh 3000` for web-based monitoring
+- **AWS Deployment**: Detailed guides in `DOCUMENTATIONS/` directory for production deployment
+
+### Quick Health Checks
+
+- **Development**: `./wise-owl.sh dev test` for quick service validation
+- **Comprehensive**: `./scripts/monitoring/health-monitor.sh local once` for detailed status
+- **Continuous**: `./scripts/monitoring/health-monitor.sh local continuous` for ongoing monitoring
+
+### Development Support
+
 - **Issues**: Create GitHub issues for bugs or feature requests
-- **Development Setup**: Use `./wise-owl dev` commands for consistent environment
+- **Development Setup**: Use `./wise-owl.sh dev` commands for consistent environment
 - **Service Reference**: Use existing services like `content` as patterns for new services
-- **Health Monitoring**: All services provide `/health`, `/health/ready`, `/health/live`, and `/health/deep` (AWS) endpoints
+- **Health Endpoints**: All services provide comprehensive health monitoring at multiple endpoints
 
 ---
 
-**Quick Reference**: Start with `./wise-owl dev setup && ./wise-owl dev start`, access via <http://localhost:8080>, and check service health with `./wise-owl dev test`.
+**Quick Reference**:
+
+- **Setup**: `./wise-owl.sh dev start`
+- **Access**: <http://localhost:8080> (API Gateway)
+- **Health Check**: `./wise-owl.sh dev test`
+- **Monitoring**: `./scripts/monitoring/health-monitor.sh local once`
+- **Dashboard**: `./scripts/monitoring/dashboard-server.sh 3000`
+- **Documentation**: See `MONITORING_SETUP.md` for complete monitoring guide

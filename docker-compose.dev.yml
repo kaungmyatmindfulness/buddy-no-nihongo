@@ -175,6 +175,7 @@ services:
     ports: ["8080:80"]
     volumes:
       - "./nginx:/etc/nginx/conf.d:ro"
+      - "./monitoring:/etc/nginx/html/monitoring:ro"
     depends_on:
       users-service:
         condition: service_healthy

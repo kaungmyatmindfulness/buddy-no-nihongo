@@ -9,11 +9,16 @@ source "$SCRIPT_DIR/../utils/common.sh"
 
 # Test configuration
 SERVICES=(
-    "Users:8081:/health"
-    "Content:8082:/health"
-    "Quiz:8083:/health"
+    "Users:8081:/health/"
+    "Content:8082:/health/"
+    "Quiz:8083:/health/"
 )
 GATEWAY_URL="http://localhost:8080/health-check"
+GATEWAY_HEALTH_ROUTES=(
+    "users:http://localhost:8080/api/v1/users/health"
+    "content:http://localhost:8080/api/v1/content/health"
+    "quiz:http://localhost:8080/api/v1/quiz/health"
+)
 
 test_service() {
     local name=$1
@@ -40,6 +45,24 @@ test_gateway() {
     fi
 }
 
+test_gateway_routing() {
+    local failed_routes=0
+    print_info "Testing gateway routing..."
+    
+    for route in "${GATEWAY_HEALTH_ROUTES[@]}"; do
+        IFS=':' read -r service_name url <<< "$route"
+        
+        if curl -s "$url" > /dev/null 2>&1; then
+            print_success "Gateway routing to $service_name service working"
+        else
+            print_warning "Gateway routing to $service_name service may have issues"
+            ((failed_routes++))
+        fi
+    done
+    
+    return $failed_routes
+}
+
 main() {
     show_banner "Development Environment Health Check"
     
@@ -59,6 +82,11 @@ main() {
     # Test nginx gateway
     if ! test_gateway; then
         ((failed_services++))
+    fi
+    
+    # Test gateway routing to services
+    if ! test_gateway_routing; then
+        print_warning "Some gateway routing may have issues"
     fi
     
     echo ""
