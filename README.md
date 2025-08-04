@@ -20,20 +20,20 @@ Wise Owl is a scalable microservices application that provides vocabulary manage
 
 ### Service Overview
 
-| Service             | Port  | Purpose                                   | Database     |
-| ------------------- | ----- | ----------------------------------------- | ------------ |
-| **Users Service**   | 8081  | User management, profiles, authentication | `users_db`   |
-| **Content Service** | 8082  | Vocabulary data, lessons management       | `content_db` |
-| **Quiz Service**    | 8083  | Quiz logic, incorrect words tracking      | `quiz_db`    |
-| **API Gateway**     | 80    | Nginx reverse proxy, routing              | -            |
-| **MongoDB**         | 27017 | Database cluster                          | -            |
+| Service             | Dev Port | Prod Port | Purpose                                   | Database     |
+| ------------------- | -------- | --------- | ----------------------------------------- | ------------ |
+| **Users Service**   | 8081     | Internal  | User management, profiles, authentication | `users_db`   |
+| **Content Service** | 8082     | Internal  | Vocabulary data, lessons management       | `content_db` |
+| **Quiz Service**    | 8083     | Internal  | Quiz logic, incorrect words tracking      | `quiz_db`    |
+| **API Gateway**     | 8080     | 80        | Nginx reverse proxy, routing              | -            |
+| **MongoDB**         | 27017    | Internal  | Database cluster (local dev only)         | -            |
 
 ### Communication Patterns
 
 - **External API**: HTTP REST via Nginx gateway (`/api/v1/{service}/`)
-- **Internal Communication**: gRPC on dedicated ports (50052, 50053, etc.)
-- **Database**: MongoDB with dedicated databases per service
-- **Authentication**: JWT tokens validated via Auth0
+- **Internal Communication**: gRPC on dedicated ports (50051, 50052, 50053)
+- **Database**: MongoDB (local dev) or AWS DocumentDB (production) with dedicated databases per service
+- **Authentication**: JWT tokens validated via Auth0 (optional in development)
 
 ### Directory Structure
 
@@ -45,14 +45,19 @@ wise-owl-golang/
 │   └── quiz/                    # Quiz and learning service
 ├── lib/                         # Shared libraries
 │   ├── auth/                    # JWT authentication middleware
-│   ├── config/                  # Configuration management
-│   ├── database/                # MongoDB connection handling
+│   ├── config/                  # Configuration management with AWS support
+│   ├── database/                # MongoDB/DocumentDB connection handling
 │   └── health/                  # Health check utilities
 ├── proto/                       # Protocol Buffer definitions
 ├── gen/                         # Generated gRPC code
 ├── nginx/                       # API Gateway configuration
+├── DOCUMENTATIONS/              # AWS deployment guides and references
+├── deployment/                  # AWS deployment configurations
 ├── docker-compose.dev.yml       # Development environment
 ├── docker-compose.prod.yml      # Production environment
+├── .env.local.example           # Development environment template
+├── .env.aws.example             # AWS environment template
+├── .env.ecs.example             # ECS-specific environment template
 └── go.work                      # Go workspace configuration
 ```
 
@@ -60,17 +65,18 @@ wise-owl-golang/
 
 - **Language**: Go 1.24+
 - **Framework**: Gin (HTTP), gRPC (internal communication)
-- **Database**: MongoDB with Go driver
-- **Authentication**: Auth0 JWT
-- **Gateway**: Nginx
+- **Database**: MongoDB (local dev) / AWS DocumentDB (production)
+- **Authentication**: Auth0 JWT (optional in development)
+- **Gateway**: Nginx reverse proxy
 - **Containerization**: Docker & Docker Compose
-- **Hot Reload**: Docker Compose watch mode
+- **Hot Reload**: Docker Compose watch mode (requires 2.22+)
+- **AWS Integration**: ECS Fargate, DocumentDB, Secrets Manager, Parameter Store
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Go 1.24 or later
+- Go 1.24.5 or later
 - Docker and Docker Compose
 - Git
 
@@ -86,12 +92,12 @@ wise-owl-golang/
 2. **Environment Configuration**
 
    ```bash
-   # Create local environment file
-   ./wise-owl dev setup
+   # Create local environment file from template
+   cp .env.local.example .env.local
 
-   # Edit .env.local with your Auth0 credentials
-   AUTH0_DOMAIN=your-auth0-domain.auth0.com
-   AUTH0_AUDIENCE=your-auth0-audience
+   # Edit .env.local with your Auth0 credentials (optional for development)
+   # AUTH0_DOMAIN=your-auth0-domain.auth0.com
+   # AUTH0_AUDIENCE=your-auth0-audience
    ```
 
 3. **Start Development Environment**
@@ -119,15 +125,28 @@ wise-owl-golang/
 
 ### Production Deployment
 
-**Note**: Deployment scripts have been temporarily removed and will be added back later.
+The project includes comprehensive AWS deployment capabilities with detailed documentation in the `DOCUMENTATIONS/` directory:
 
-For now, you can use the production Docker Compose file directly:
+- **AWS Manual Deployment Guide**: `DOCUMENTATIONS/AWS_MANUAL_DEPLOYMENT_GUIDE.md`
+- **AWS Infrastructure Setup**: `DOCUMENTATIONS/AWS_INFRASTRUCTURE_SETUP.md`
+- **AWS Troubleshooting**: `DOCUMENTATIONS/AWS_TROUBLESHOOTING_GUIDE.md`
+- **AWS Learning Workflow**: `DOCUMENTATIONS/AWS_LEARNING_WORKFLOW.md`
+
+**Quick AWS Deployment Overview:**
+
+- **ECS Fargate**: Containerized services with auto-scaling
+- **DocumentDB**: MongoDB-compatible managed database
+- **ALB**: Application Load Balancer with SSL
+- **ECR**: Container registry for service images
+- **Secrets Manager**: Centralized secret management
+
+For local production testing:
 
 ```bash
-# Use production compose file
+# Use production compose file (requires .env.production)
 docker-compose -f docker-compose.prod.yml up -d
 
-# Services will be available on port 80 via Nginx gateway
+# Services will be available on port 8080 via Nginx gateway
 ```
 
 ## 📜 Scripts Documentation
@@ -282,13 +301,8 @@ If you prefer to run scripts directly instead of using the unified interface:
 ./scripts/development/dev-watch.sh              # Hot reload development
 ./scripts/development/test-dev.sh               # Health check testing
 
-# Monitoring scripts
-./monitoring/scripts/monitor-stack.sh [command] # Monitoring stack management
-./monitoring/scripts/system-monitor.sh [option] # System monitoring
-
 # Utility scripts
 ./scripts/utils/common.sh                       # Shared functions (sourced by others)
-./scripts/show-organization.sh                  # Display script organization
 ```
 
 ### Script Requirements and Prerequisites
@@ -297,12 +311,12 @@ If you prefer to run scripts directly instead of using the unified interface:
 
 - **Docker**: Version 20.10+ with Docker Compose
 - **Operating System**: macOS, Linux, or Windows with WSL2
-- **Ports**: 8080-8083, 27017, 50052-50053 must be available
+- **Ports**: 8080-8083, 27017, 50051-50053 must be available
 - **Disk Space**: Minimum 2GB for Docker images and volumes
 
 #### Deployment Requirements
 
-**Note**: Deployment scripts have been temporarily removed. This section will be updated when deployment scripts are added back.
+**Note**: Deployment scripts have been temporarily removed and will be added back later.
 
 For manual deployment:
 
@@ -316,9 +330,11 @@ For manual deployment:
 The scripts work with different environment configurations:
 
 - **`.env.local`**: Development environment (created by `./wise-owl dev setup`)
-- **`.env.example`**: Template file with all required variables
+- **`.env.local.example`**: Template file with all required variables for local development
+- **`.env.aws.example`**: Template file for AWS deployment configuration
+- **`.env.ecs.example`**: Template file specifically for ECS task definitions
 
-**Note**: References to `.env.docker` deployment environment have been removed as deployment scripts are temporarily unavailable.
+**Note**: The project includes multiple environment templates to support different deployment scenarios.
 
 ### Troubleshooting Scripts
 
@@ -385,6 +401,11 @@ The scripts are designed to be extensible. Key customization points:
 # Testing and monitoring
 ./wise-owl dev test           # Health check all services
 ./wise-owl dev status         # Show service status
+
+# Monitoring commands (if monitoring stack is configured)
+./wise-owl monitor start      # Start monitoring stack
+./wise-owl monitor stop       # Stop monitoring stack
+./wise-owl monitor status     # Show monitoring status
 ```
 
 ### Working with Services
@@ -435,23 +456,33 @@ protoc --go_out=gen --go-grpc_out=gen proto/content/*.proto
 | --------------- | ----------------------------- |
 | `/health`       | Basic health status           |
 | `/health/ready` | Readiness check (includes DB) |
+| `/health/live`  | Liveness check for containers |
+| `/health/deep`  | Detailed health (AWS only)    |
 
 ## ⚙️ Configuration
 
 ### Environment Variables
 
-| Variable         | Description               | Default                     | Required |
-| ---------------- | ------------------------- | --------------------------- | -------- |
-| `SERVER_PORT`    | HTTP server port          | `8080`                      | ❌       |
-| `MONGODB_URI`    | MongoDB connection string | `mongodb://localhost:27017` | ❌       |
-| `DB_NAME`        | Database name             | `{service}_db`              | ❌       |
-| `AUTH0_DOMAIN`   | Auth0 domain              | -                           | ✅       |
-| `AUTH0_AUDIENCE` | Auth0 API audience        | -                           | ✅       |
+| Variable              | Description                          | Default                     | Required |
+| --------------------- | ------------------------------------ | --------------------------- | -------- |
+| `SERVER_PORT`         | HTTP server port                     | `8080`                      | ❌       |
+| `GRPC_PORT`           | gRPC server port                     | `50051`                     | ❌       |
+| `MONGODB_URI`         | MongoDB connection string            | `mongodb://localhost:27017` | ❌       |
+| `DB_NAME`             | Database name                        | `{service}_db`              | ❌       |
+| `DB_TYPE`             | Database type (mongodb/documentdb)   | `mongodb`                   | ❌       |
+| `LOG_LEVEL`           | Application log level                | `info`                      | ❌       |
+| `ENVIRONMENT`         | Environment name                     | `development`               | ❌       |
+| `AUTH0_DOMAIN`        | Auth0 domain                         | -                           | ❌       |
+| `AUTH0_AUDIENCE`      | Auth0 API audience                   | -                           | ❌       |
+| `JWT_SECRET`          | JWT secret for local development     | -                           | ❌       |
+| `AWS_EXECUTION_ENV`   | AWS environment detection            | -                           | ❌       |
+| `CONTENT_SERVICE_URL` | Content service gRPC URL (quiz only) | `content-service:50052`     | ❌       |
+| `USERS_SERVICE_URL`   | Users service gRPC URL               | `users-service:50051`       | ❌       |
 
 ### Development vs Production
 
 - **Development**: `.env.local` with hot reload and direct service access
-- **Production**: `.env.docker` with optimized builds and gateway-only access
+- **Production**: `.env.production` with optimized builds and gateway-only access
 
 ## 🧪 Testing
 
@@ -592,10 +623,10 @@ This project is licensed under the MIT License. See LICENSE file for details.
 ## 🆘 Support & Resources
 
 - **Issues**: Create GitHub issues for bugs or feature requests
-- **Development Setup**: Use `./scripts/dev.sh` commands for consistent environment
+- **Development Setup**: Use `./wise-owl dev` commands for consistent environment
 - **Service Reference**: Use existing services like `content` as patterns for new services
-- **Health Monitoring**: All services provide `/health` and `/health/ready` endpoints
+- **Health Monitoring**: All services provide `/health`, `/health/ready`, `/health/live`, and `/health/deep` (AWS) endpoints
 
 ---
 
-**Quick Reference**: Start with `./dev.sh setup && ./dev.sh start`, access via <http://localhost>, and check service health with `./test-dev.sh`.
+**Quick Reference**: Start with `./wise-owl dev setup && ./wise-owl dev start`, access via <http://localhost:8080>, and check service health with `./wise-owl dev test`.
