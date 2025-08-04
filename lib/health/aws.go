@@ -28,6 +28,11 @@ func NewAWSEnhancedHealthChecker(serviceName string, db *mongo.Database) *AWSEnh
 	}
 }
 
+// RegisterRoutes registers health check routes for interface compatibility
+func (h *AWSEnhancedHealthChecker) RegisterRoutes(router *gin.Engine) {
+	h.RegisterAWSRoutes(router)
+}
+
 // RegisterAWSRoutes registers AWS-specific health check routes
 func (h *AWSEnhancedHealthChecker) RegisterAWSRoutes(router *gin.Engine) {
 	health := router.Group("/health")
@@ -137,4 +142,14 @@ func (h *AWSEnhancedHealthChecker) getDatabaseStatus() map[string]interface{} {
 	}
 
 	return status
+}
+
+// Handler returns the basic health handler for interface compatibility
+func (h *AWSEnhancedHealthChecker) Handler() gin.HandlerFunc {
+	return h.BasicHealth
+}
+
+// ReadyHandler returns the readiness handler for interface compatibility
+func (h *AWSEnhancedHealthChecker) ReadyHandler() gin.HandlerFunc {
+	return h.ReadinessCheck
 }

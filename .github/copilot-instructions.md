@@ -49,11 +49,12 @@ This is a **Japanese vocabulary learning platform** built as microservices with 
 ```
 services/{name}/
 ├── cmd/main.go                    # Dual server setup (HTTP + gRPC)
+├── cmd/main_aws.go               # AWS-optimized version (build tag: aws)
 ├── internal/
 │   ├── handlers/{name}_handlers.go # HTTP REST endpoints
 │   ├── grpc/{name}_grpc.go        # gRPC service implementation
 │   ├── models/{name}.go           # MongoDB models
-│   └── seeder/seeder.go           # Database initialization
+│   └── seeder/seeder.go           # Database initialization (optional)
 ├── Dockerfile & Dockerfile.dev    # Production & development containers
 └── go.mod                         # Service-specific dependencies
 ```
@@ -62,7 +63,7 @@ services/{name}/
 
 ### Authentication & Middleware
 
-- Use `lib/auth.EnsureValidToken()` for protected endpoints
+- Use `lib/auth.EnsureValidToken(domain, audience)` for protected endpoints
 - JWT validation through Auth0 (optional configuration)
 - All services follow same auth pattern in `main.go`
 
@@ -70,7 +71,8 @@ services/{name}/
 
 - MongoDB (local) and AWS DocumentDB (production) support via `DB_TYPE` config
 - Models use `bson` tags for MongoDB, `json` for REST
-- Database seeding through JSON files in `seed/` directories
+- Database seeding through JSON files in `seed/` directories (content service)
+- Users service creates indexes automatically (no pre-seeding needed)
 - Connection via `database.CreateDatabaseSingleton(cfg)` with auto-detection
 - AWS environments load credentials from Secrets Manager (`wise-owl/production`)
 - Each service uses dedicated database: `{service}_db` (e.g., `content_db`, `users_db`)
@@ -84,8 +86,10 @@ services/{name}/
 
 ### Health Checks & Monitoring
 
-- Use `lib/health.NewSimpleHealthChecker()`
-- Standard endpoints: `/health/ready`, `/health/live`
+- Use `lib/health.NewSimpleHealthChecker()` for local development
+- Use `lib/health.NewAWSEnhancedHealthChecker()` for AWS environments
+- Both implement same interface: `RegisterRoutes()`, `Handler()`, `ReadyHandler()`
+- Standard endpoints: `/health`, `/health/ready`, `/health/live`, `/health/deep` (AWS only)
 - Docker health checks configured in compose files
 
 ## AWS Deployment & Production

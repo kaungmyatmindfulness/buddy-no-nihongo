@@ -1,3 +1,6 @@
+//go:build aws
+// +build aws
+
 // FILE: services/users/cmd/main_aws.go
 // AWS-optimized version of main.go with enhanced configuration and health checks
 
@@ -95,7 +98,13 @@ func main() {
 			Auth0Audience: cfg.Auth0.Audience,
 			JWT_SECRET:    cfg.JWT.Secret,
 		}
-		db = database.CreateDatabaseSingleton(legacyCfg)
+		dbInterface := database.CreateDatabaseSingleton(legacyCfg)
+		// For MongoDB, extract the underlying client and get the database
+		if mongoCol, ok := dbInterface.GetCollection(dbName, "temp").(*database.MongoCollection); ok {
+			db = mongoCol.Collection.Database()
+		} else {
+			log.Fatal("FATAL: Failed to get mongo database from database interface")
+		}
 		log.Printf("Connected to MongoDB: %s", dbName)
 	}
 
@@ -121,13 +130,18 @@ func main() {
 
 	// Add auth middleware
 	var authMiddleware gin.HandlerFunc
-	if cfg.JWT.Secret != "" {
-		authMiddleware = auth.EnsureValidToken(cfg.JWT.Secret)
+	if cfg.Auth0.Domain != "" && cfg.Auth0.Audience != "" {
+		authMiddleware = auth.EnsureValidToken(cfg.Auth0.Domain, cfg.Auth0.Audience)
+		log.Println("Auth0 authentication enabled")
 	} else {
-		// Skip auth in development if no secret is configured
+		// Skip auth in development if no Auth0 is configured
 		authMiddleware = func(c *gin.Context) { c.Next() }
-		log.Println("WARNING: No JWT secret configured, skipping authentication")
+		log.Println("WARNING: Auth0 not configured, skipping authentication")
 	}
+
+	// Initialize user handler
+	userCollection := db.Collection("users")
+	userHandler := handlers.NewUserHandler(userCollection)
 
 	// Setup API routes
 	api := router.Group("/api/v1/users")
@@ -144,7 +158,7 @@ func main() {
 		protected := api.Group("/")
 		protected.Use(authMiddleware)
 		{
-			protected.GET("/profile", handlers.GetProfile)
+			protected.GET("/profile", userHandler.GetUserProfile)
 			// Add other routes as needed
 		}
 	}
